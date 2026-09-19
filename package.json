@@ -1,0 +1,43 @@
+{
+  "name": "pi-prompt-history",
+  "version": "0.1.0",
+  "description": "Rolling prompt history and instant recall for Pi coding agent",
+  "keywords": [
+    "pi-package",
+    "pi-extension"
+  ],
+  "author": "the-matt-moo",
+  "license": "MIT",
+  "type": "module",
+  "main": "./src/index.ts",
+  "bin": {
+    "pi-history": "./bin/pi-history.mjs"
+  },
+  "pi": {
+    "extensions": [
+      "./src/index.ts"
+    ]
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/the-matt-moo/pi-prompt-history.git"
+  },
+  "files": [
+    "bin",
+    "src",
+    "README.md",
+    "LICENSE"
+  ],
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "test": "node --test test/*.test.mjs"
+  },
+  "peerDependencies": {
+    "@earendil-works/pi-coding-agent": ">=0.80.0"
+  },
+  "devDependencies": {
+    "@earendil-works/pi-coding-agent": "^0.85.1",
+    "@types/node": "^22.0.0",
+    "typescript": "^5.7.0"
+  }
+}
