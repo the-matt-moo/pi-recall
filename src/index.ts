@@ -99,16 +99,17 @@ export default function promptHistory(pi: ExtensionAPI) {
     ctx: Parameters<Parameters<typeof pi.registerCommand>[1]["handler"]>[1],
   ) => {
     const records = loadRecords() as PromptRecord[];
-    if (!records.length) {
+    const filtered = records.filter((r) => !r.prompt.startsWith("/"));
+    if (!filtered.length) {
       ctx.ui.notify("No prompt history recorded yet", "info");
       return;
     }
 
     const trimmed = args.trim();
-    const recent = records.slice(-20).reverse();
+    const recent = filtered.slice(-20).reverse();
 
     if (trimmed === "last") {
-      const record = records.at(-1)!;
+      const record = filtered.at(-1)!;
       ctx.ui.setEditorText(record.prompt);
       ctx.ui.notify("Loaded last prompt into editor", "info");
       return;
@@ -138,7 +139,7 @@ export default function promptHistory(pi: ExtensionAPI) {
     }
 
     if (!ctx.hasUI) {
-      const record = records.at(-1)!;
+      const record = filtered.at(-1)!;
       ctx.ui.notify(`Last prompt: ${record.prompt}`, "info");
       return;
     }
@@ -162,7 +163,7 @@ export default function promptHistory(pi: ExtensionAPI) {
   ) => {
     const query = args.trim() || (ctx.hasUI ? await ctx.ui.input("Search sessions:", "name, prompt, date, or keyword") : "");
     if (query === undefined) return;
-    const sessions = searchSessions(query);
+    const sessions = searchSessions(query).filter((s) => !s.firstPrompt?.startsWith("/"));
     if (!sessions.length) {
       ctx.ui.notify(`No sessions match: ${query || "all sessions"}`, "info");
       return;
@@ -191,9 +192,9 @@ export default function promptHistory(pi: ExtensionAPI) {
     handler: handleHistoryCommand,
   });
   pi.registerCommand("prompt-history", { description: "Alias for /history", handler: handleHistoryCommand });
-  pi.registerCommand("sessions", {
+  pi.registerCommand("session-search", {
     description: "Search all stored sessions by name, prompt, date, or text",
     handler: handleSessionSearch,
   });
-  pi.registerCommand("session-search", { description: "Alias for /sessions", handler: handleSessionSearch });
+  pi.registerCommand("sessions", { description: "Alias for /session-search", handler: handleSessionSearch });
 }

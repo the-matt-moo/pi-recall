@@ -1,7 +1,7 @@
 {
-  "name": "pi-prompt-history",
-  "version": "0.2.1",
-  "description": "Rolling prompt history and instant recall for Pi coding agent",
+  "name": "pi-session-history",
+  "version": "0.2.3",
+  "description": "Session and prompt history management for Pi coding agent: organize, name, and recall conversations.",
   "keywords": [
     "pi-package",
     "pi-extension"
@@ -11,6 +11,7 @@
   "type": "module",
   "main": "./src/index.ts",
   "bin": {
+    "pi-session": "./bin/pi-history.mjs",
     "pi-history": "./bin/pi-history.mjs"
   },
   "pi": {
@@ -20,7 +21,7 @@
   },
   "repository": {
     "type": "git",
-    "url": "https://github.com/the-matt-moo/pi-prompt-history.git"
+    "url": "https://github.com/the-matt-moo/pi-session-history.git"
   },
   "files": [
     "bin",

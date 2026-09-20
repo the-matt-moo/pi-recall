@@ -1,5 +1,16 @@
 # Changelog
 
+## [0.2.3] - 20-09-2026
+
+### Changed
+- Rename package to `pi-session-history`; install via `pi-session-history`, invoke via `pi-session` or `pi-history`.
+- `/session-search` is now the primary command; `/sessions` remains as an alias.
+
+## [0.2.2] - 20-09-2026
+
+### Fixed
+- Exclude slash commands from `/history` and `/sessions` display (filter was logging only, not displaying).
+
 ## [0.2.1] - 20-09-2026
 
 ### Fixed

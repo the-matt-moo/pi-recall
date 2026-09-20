@@ -1,8 +1,6 @@
-# pi-prompt-history
+# pi-session-history
 
-Rolling prompt history and instant recall for [Pi](https://github.com/earendil-works/pi-mono).
-
-Automatically captures each outbound prompt synchronously to a persistent rolling JSONL log, making recovery seamless when sessions are abruptly terminated by external processes (e.g., Bitdefender, OS kills).
+Session and prompt history management for [Pi](https://github.com/earendil-works/pi-mono). Organize conversations with human-readable names, search session history, and instantly recall prompts—all persisted to a rolling JSONL log for seamless recovery when sessions are abruptly terminated by external processes (e.g., Bitdefender, OS kills).
 
 ## Features
 
@@ -18,20 +16,20 @@ Automatically captures each outbound prompt synchronously to a persistent rollin
 ### As a Pi Package (Recommended)
 
 ```bash
-pi install git:github.com/the-matt-moo/pi-prompt-history
+pi install git:github.com/the-matt-moo/pi-session-history
 ```
 
 ### Via npm (Global CLI & Extension)
 
 ```bash
-npm install -g git+https://github.com/the-matt-moo/pi-prompt-history.git
+npm install -g git+https://github.com/the-matt-moo/pi-session-history.git
 ```
 
 Or for local development:
 
 ```bash
-git clone https://github.com/the-matt-moo/pi-prompt-history.git
-pi install ./pi-prompt-history
+git clone https://github.com/the-matt-moo/pi-session-history.git
+pi install ./pi-session-history
 ```
 
 ## Usage
@@ -42,8 +40,8 @@ pi install ./pi-prompt-history
 - `/history last`: Restore the immediate previous prompt into the editor.
 - `/history <N>`: Restore the Nth previous prompt into the editor.
 - `/history send [last|<N>]`: Send the prompt immediately without waiting for Enter.
-- `/sessions [query]`: Search all stored sessions. Without a query, opens a search prompt; select a result to switch sessions.
-- `/session-search [query]`: Alias for `/sessions`.
+- `/session-search [query]`: Search all stored sessions. Without a query, opens a search prompt; select a result to switch sessions.
+- `/sessions [query]`: Alias for `/session-search`.
 
 ### Auto-name model
 
