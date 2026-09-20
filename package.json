@@ -39,8 +39,11 @@
   "peerDependencies": {
     "@earendil-works/pi-coding-agent": ">=0.80.0"
   },
+  "engines": {
+    "node": ">=22.19.0"
+  },
   "devDependencies": {
-    "@earendil-works/pi-coding-agent": "^0.85.1",
+    "@earendil-works/pi-coding-agent": "0.86.1",
     "@types/node": "^22.0.0",
     "typescript": "^5.7.0"
   }
