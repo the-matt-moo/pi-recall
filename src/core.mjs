@@ -5,6 +5,7 @@ import {
   mkdirSync,
   openSync,
   readFileSync,
+  readdirSync,
   renameSync,
   statSync,
   unlinkSync,
@@ -26,6 +27,18 @@ export function getHistoryDir() {
 
 export function getHistoryFile() {
   return join(getHistoryDir(), "prompts.jsonl");
+}
+
+export function getSettingsFile() {
+  return join(getHistoryDir(), "settings.json");
+}
+
+export function loadSettings() {
+  try {
+    return JSON.parse(readFileSync(getSettingsFile(), "utf8"));
+  } catch {
+    return {};
+  }
 }
 
 export function appendAndFlush(record) {
@@ -80,6 +93,98 @@ export function formatTimestamp(iso) {
   } catch {
     return iso;
   }
+}
+
+function textFromContent(content) {
+  if (typeof content === "string") return content;
+  if (!Array.isArray(content)) return "";
+  return content
+    .filter((block) => block?.type === "text" && typeof block.text === "string")
+    .map((block) => block.text)
+    .join(" ");
+}
+
+function sessionFiles(directory) {
+  if (!existsSync(directory)) return [];
+  return readdirSync(directory, { withFileTypes: true }).flatMap((entry) => {
+    const file = join(directory, entry.name);
+    if (entry.isDirectory()) return sessionFiles(file);
+    return entry.isFile() && entry.name.endsWith(".jsonl") ? [file] : [];
+  });
+}
+
+export function readSessionSummary(file) {
+  try {
+    const entries = readFileSync(file, "utf8")
+      .split(/\r?\n/)
+      .filter(Boolean)
+      .flatMap((line) => {
+        try {
+          return [JSON.parse(line)];
+        } catch {
+          return [];
+        }
+      });
+    const header = entries.find((entry) => entry.type === "session") ?? {};
+    const name = entries
+      .filter((entry) => entry.type === "session_info" && typeof entry.name === "string")
+      .at(-1)?.name;
+    const messages = entries
+      .filter((entry) => entry.type === "message")
+      .map((entry) => entry.message)
+      .filter(Boolean);
+    const firstPrompt = messages.find((message) => message.role === "user");
+    const fullText = messages
+      .filter((message) => ["user", "assistant", "toolResult", "custom"].includes(message.role))
+      .map((message) => textFromContent(message.content))
+      .filter(Boolean)
+      .join(" ");
+
+    return {
+      file,
+      name: name ?? "",
+      timestamp: header.timestamp ?? "",
+      firstPrompt: textFromContent(firstPrompt?.content),
+      fullText,
+    };
+  } catch {
+    return undefined;
+  }
+}
+
+export function searchSessions(query = "", sessionDir = join(getConfigDir(), "sessions")) {
+  const terms = query.toLocaleLowerCase().trim().split(/\s+/).filter(Boolean);
+  return sessionFiles(sessionDir)
+    .map(readSessionSummary)
+    .filter(Boolean)
+    .filter((session) => {
+      const text = `${session.name} ${session.firstPrompt} ${session.timestamp} ${formatTimestamp(session.timestamp)} ${session.fullText}`.toLocaleLowerCase();
+      return terms.every((term) => text.includes(term));
+    })
+    .sort((a, b) => Date.parse(b.timestamp) - Date.parse(a.timestamp));
+}
+
+export function makeSessionNamePrompt(initialPrompt) {
+  return [
+    "Create a concise 3-7 word title for this Pi coding session.",
+    "Return only the title: no quotes, punctuation, markdown, or explanation.",
+    `Initial prompt: ${initialPrompt.slice(0, 4000)}`,
+  ].join("\n");
+}
+
+export function normalizeSessionName(value) {
+  return value
+    .replace(/^[\s"'`#]*title\s*:\s*/i, "")
+    .replace(/[\r\n]+/g, " ")
+    .replace(/^\s*["'`]+|["'`]+\s*$/g, "")
+    .replace(/\s+/g, " ")
+    .trim()
+    .slice(0, 80);
+}
+
+export function selectNameModel(scopedModels, activeModel, requestedModel) {
+  if (!requestedModel) return activeModel;
+  return scopedModels.find(({ model }) => `${model.provider}/${model.id}` === requestedModel)?.model;
 }
 
 export function launchPi(record, resend) {

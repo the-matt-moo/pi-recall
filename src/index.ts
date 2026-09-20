@@ -1,5 +1,14 @@
-import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
-import { appendAndFlush, formatTimestamp, loadRecords } from "./core.mjs";
+import type { ExtensionAPI, ExtensionContext } from "@earendil-works/pi-coding-agent";
+import {
+  appendAndFlush,
+  formatTimestamp,
+  loadRecords,
+  loadSettings,
+  makeSessionNamePrompt,
+  normalizeSessionName,
+  searchSessions,
+  selectNameModel,
+} from "./core.mjs";
 
 export interface PromptRecord {
   version: number;
@@ -12,8 +21,47 @@ export interface PromptRecord {
   imageCount: number;
 }
 
+type AutoNameSettings = { autoName?: { enabled?: boolean; model?: string } };
+
+function textFromContent(content: unknown) {
+  if (typeof content === "string") return content;
+  if (!Array.isArray(content)) return "";
+  return content
+    .filter((block) => block?.type === "text" && typeof block.text === "string")
+    .map((block) => block.text)
+    .join(" ");
+}
+
 export default function promptHistory(pi: ExtensionAPI) {
   let warned = false;
+  let initialPrompt: string | undefined;
+  let namingQueued = false;
+
+  const autoName = async (prompt: string, ctx: ExtensionContext) => {
+    const settings = loadSettings() as AutoNameSettings;
+    if (settings.autoName?.enabled === false || pi.getSessionName()) return;
+
+    const model = selectNameModel(ctx.scopedModels, ctx.model, settings.autoName?.model);
+    if (!model) {
+      if (settings.autoName?.model) {
+        ctx.ui.notify("Auto-naming skipped: configured model is not session-scoped", "warning");
+      }
+      return;
+    }
+
+    try {
+      const result = await ctx.modelRegistry.complete(
+        model,
+        { messages: [{ role: "user", content: makeSessionNamePrompt(prompt), timestamp: Date.now() }] },
+        { reasoning: "off" },
+      );
+      if (pi.getSessionName()) return;
+      const name = normalizeSessionName(textFromContent(result.content));
+      if (name) pi.setSessionName(name);
+    } catch {
+      // Naming is best-effort and must never interrupt the session.
+    }
+  };
 
   pi.on("before_agent_start", (event, ctx) => {
     try {
@@ -33,6 +81,14 @@ export default function promptHistory(pi: ExtensionAPI) {
         ctx.ui.notify(`Prompt history write failed: ${String(error)}`, "warning");
       }
     }
+
+    if (!initialPrompt && !pi.getSessionName()) initialPrompt = event.prompt;
+  });
+
+  pi.on("agent_settled", (_event, ctx) => {
+    if (namingQueued || !initialPrompt || pi.getSessionName()) return;
+    namingQueued = true;
+    void autoName(initialPrompt, ctx);
   });
 
   const handleHistoryCommand = async (
@@ -84,41 +140,57 @@ export default function promptHistory(pi: ExtensionAPI) {
       return;
     }
 
-    const cols =
-      typeof process.stdout.columns === "number" && process.stdout.columns > 0
-        ? process.stdout.columns
-        : 80;
-    const maxLineLen = Math.max(20, cols - 8);
-
-    const options = recent.map((r, i) => {
-      const time = formatTimestamp(r.timestamp);
-      const prefix = `${i + 1}. [${time}] `;
-      const clean = r.prompt.replace(/[\r\n\t]+/g, " ").trim();
-      const available = Math.max(8, maxLineLen - prefix.length);
-      const preview =
-        clean.length > available ? `${clean.slice(0, Math.max(0, available - 3))}...` : clean;
-      return `${prefix}${preview}`;
+    const options = recent.map((record, index) => {
+      const preview = record.prompt.replace(/[\r\n\t]+/g, " ").trim().slice(0, 70);
+      return `${index + 1}. [${formatTimestamp(record.timestamp)}] ${preview}`;
     });
-
     const choice = await ctx.ui.select("Select prompt from history:", options);
-    if (!choice) return;
+    const index = choice ? Number(choice.match(/^(\d+)\./)?.[1]) - 1 : -1;
+    const record = recent[index];
+    if (!record) return;
 
-    const match = choice.match(/^(\d+)\./);
-    const selectedIndex = match ? Number(match[1]) - 1 : -1;
-    const selectedRecord = recent[selectedIndex];
-    if (!selectedRecord) return;
+    ctx.ui.setEditorText(record.prompt);
+    ctx.ui.notify(`Prompt #${index + 1} restored to editor - press Enter to run`, "info");
+  };
 
-    ctx.ui.setEditorText(selectedRecord.prompt);
-    ctx.ui.notify(`Prompt #${selectedIndex + 1} restored to editor - press Enter to run`, "info");
+  const handleSessionSearch = async (
+    args: string,
+    ctx: Parameters<Parameters<typeof pi.registerCommand>[1]["handler"]>[1],
+  ) => {
+    const query = args.trim() || (ctx.hasUI ? await ctx.ui.input("Search sessions:", "name, prompt, date, or keyword") : "");
+    if (query === undefined) return;
+    const sessions = searchSessions(query);
+    if (!sessions.length) {
+      ctx.ui.notify(`No sessions match: ${query || "all sessions"}`, "info");
+      return;
+    }
+    if (!ctx.hasUI) {
+      ctx.ui.notify(`${sessions.length} session(s) match: ${query || "all sessions"}`, "info");
+      return;
+    }
+
+    const options = sessions.slice(0, 100).map((session: { name: string; firstPrompt: string; timestamp: string }, index: number) => {
+      const title = session.name || session.firstPrompt || "Untitled session";
+      return `${index + 1}. [${formatTimestamp(session.timestamp)}] ${title.replace(/[\r\n\t]+/g, " ").slice(0, 90)}`;
+    });
+    const choice = await ctx.ui.select("Select session:", options);
+    const index = choice ? Number(choice.match(/^(\d+)\./)?.[1]) - 1 : -1;
+    const session = sessions[index];
+    if (!session) return;
+
+    await ctx.switchSession(session.file, {
+      withSession: async (nextCtx) => nextCtx.ui.notify("Switched session", "info"),
+    });
   };
 
   pi.registerCommand("history", {
     description: "Browse or restore prompts from history (/history [last|N|send])",
     handler: handleHistoryCommand,
   });
-
-  pi.registerCommand("prompt-history", {
-    description: "Alias for /history",
-    handler: handleHistoryCommand,
+  pi.registerCommand("prompt-history", { description: "Alias for /history", handler: handleHistoryCommand });
+  pi.registerCommand("sessions", {
+    description: "Search all stored sessions by name, prompt, date, or text",
+    handler: handleSessionSearch,
   });
+  pi.registerCommand("session-search", { description: "Alias for /sessions", handler: handleSessionSearch });
 }

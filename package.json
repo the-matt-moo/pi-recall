@@ -1,6 +1,6 @@
 {
   "name": "pi-prompt-history",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Rolling prompt history and instant recall for Pi coding agent",
   "keywords": [
     "pi-package",

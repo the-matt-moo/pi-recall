@@ -7,7 +7,9 @@ Automatically captures each outbound prompt synchronously to a persistent rollin
 ## Features
 
 - **Synchronous & Flushed**: Flushes and `fsync`s prompt and session metadata immediately in `before_agent_start`.
-- **In-Session Command**: `/history` lists recent prompts truncated to a single line (`...`) and restores them into the editor with Enter to run.
+- **In-Session History**: `/history` lists recent prompts and restores them into the editor.
+- **Auto Names**: Names a new session after its first settled turn, without interrupting the session.
+- **Session Search**: Searches every stored session by title, initial prompt, timestamp, or conversation text, then switches to it.
 - **Host Terminal CLI**: `pi-history` command for crash recovery outside Pi when Pi is dead.
 - **Rolling Log**: 5 MiB size cap with `.1` rollover at `~/.pi/agent/prompt-history/prompts.jsonl`.
 
@@ -40,6 +42,23 @@ pi install ./pi-prompt-history
 - `/history last`: Restore the immediate previous prompt into the editor.
 - `/history <N>`: Restore the Nth previous prompt into the editor.
 - `/history send [last|<N>]`: Send the prompt immediately without waiting for Enter.
+- `/sessions [query]`: Search all stored sessions. Without a query, opens a search prompt; select a result to switch sessions.
+- `/session-search [query]`: Alias for `/sessions`.
+
+### Auto-name model
+
+By default, auto-naming uses the current session model. To select a cheaper or faster model, create user-scoped settings at `~/.pi/agent/prompt-history/settings.json` (or `$PI_CODING_AGENT_DIR/prompt-history/settings.json`):
+
+```json
+{
+  "autoName": {
+    "enabled": true,
+    "model": "provider/model-id"
+  }
+}
+```
+
+The configured model must be visible in Pi's current `/scoped-models`; otherwise naming is skipped. Set `"enabled": false` to disable auto-naming.
 
 ### Outside Pi (Host Terminal)
 
