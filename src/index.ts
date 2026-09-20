@@ -64,6 +64,9 @@ export default function promptHistory(pi: ExtensionAPI) {
   };
 
   pi.on("before_agent_start", (event, ctx) => {
+    // Skip slash commands (/reload, /history, etc.)
+    if (event.prompt.startsWith("/")) return;
+
     try {
       appendAndFlush({
         version: 1,
@@ -82,7 +85,7 @@ export default function promptHistory(pi: ExtensionAPI) {
       }
     }
 
-    if (!initialPrompt && !pi.getSessionName()) initialPrompt = event.prompt;
+    if (!initialPrompt && !pi.getSessionName()) initialPrompt = event.prompt;  // Only used for auto-naming user prompts
   });
 
   pi.on("agent_settled", (_event, ctx) => {
