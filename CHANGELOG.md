@@ -1,5 +1,10 @@
 # Changelog
 
+## [0.2.2] - 20-09-2026
+
+### Fixed
+- Exclude slash commands from `/history` and `/sessions` display (filter was logging only, not displaying).
+
 ## [0.2.1] - 20-09-2026
 
 ### Fixed
