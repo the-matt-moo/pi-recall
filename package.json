@@ -1,6 +1,6 @@
 {
-  "name": "pi-session-history",
-  "version": "0.2.4",
+  "name": "@tenchi4u/pi-session-history",
+  "version": "0.2.5",
   "description": "Session and prompt history management for Pi coding agent: organize, name, and recall conversations.",
   "keywords": [
     "pi-package",
@@ -13,6 +13,9 @@
   "bin": {
     "pi-session": "./bin/pi-history.mjs",
     "pi-history": "./bin/pi-history.mjs"
+  },
+  "publishConfig": {
+    "access": "public"
   },
   "pi": {
     "extensions": [

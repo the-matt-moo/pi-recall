@@ -1,5 +1,10 @@
 # Changelog
 
+## [0.2.5] - 20-09-2026
+
+### Changed
+- Publish as scoped npm package `@tenchi4u/pi-session-history` for public npm registry.
+
 ## [0.2.4] - 20-09-2026
 
 ### Changed
