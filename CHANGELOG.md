@@ -1,5 +1,10 @@
 # Changelog
 
+## [0.2.4] - 20-09-2026
+
+### Changed
+- Add social card image to README.
+
 ## [0.2.3] - 20-09-2026
 
 ### Changed

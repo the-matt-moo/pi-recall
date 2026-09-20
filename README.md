@@ -1,3 +1,5 @@
+![pi-session-history](./assets/pi-session-history-social-card.png)
+
 # pi-session-history
 
 Session and prompt history management for [Pi](https://github.com/earendil-works/pi-mono). Organize conversations with human-readable names, search session history, and instantly recall prompts—all persisted to a rolling JSONL log for seamless recovery when sessions are abruptly terminated by external processes (e.g., Bitdefender, OS kills).

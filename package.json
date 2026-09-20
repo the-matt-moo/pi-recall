@@ -1,6 +1,6 @@
 {
   "name": "pi-session-history",
-  "version": "0.2.3",
+  "version": "0.2.4",
   "description": "Session and prompt history management for Pi coding agent: organize, name, and recall conversations.",
   "keywords": [
     "pi-package",
