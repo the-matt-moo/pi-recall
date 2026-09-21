@@ -8,8 +8,8 @@ Persistent session and prompt recall for [Pi](https://github.com/earendil-works/
 
 - `/sessions` searches and opens saved sessions.
 - `/prompts` searches and restores recorded prompts.
-- `/sessions last` opens the most recent session other than the current one.
-- `/prompts last` restores the most recent prompt to the editor.
+- `/sessions --last` opens the most recent session other than the current one.
+- `/prompts --last` restores the most recent prompt to the editor.
 - Sessions and prompts can be pinned; sessions can also be tagged.
 - New sessions can be named automatically after their first completed turn.
 - Prompt and metadata writes are flushed immediately.
@@ -44,10 +44,10 @@ pi install ./pi-session-history
 | `/sessions` | Open all saved sessions. |
 | `/sessions <query>` | Filter by session name or first prompt. |
 | `/sessions pinned` | Open pinned sessions only. |
-| `/sessions last` | Open the newest saved session other than the current session. |
+| `/sessions --last` | Open the newest saved session other than the current session. |
 | `/prompts` | Open recorded prompts. |
 | `/prompts <query>` | Filter prompts by text. |
-| `/prompts last` | Restore the newest eligible prompt to the editor. |
+| `/prompts --last` | Restore the newest eligible prompt to the editor. |
 | `/session-pin` | Toggle the current session pin. |
 | `/session-tag <tag>` | Toggle a single-word tag on the current session. |
 | `/session-prune [days]` | Archive old sessions; defaults to 90 days and asks for confirmation. |
@@ -86,7 +86,7 @@ Create `~/.pi/agent/session-history/settings.json`, or `$PI_CODING_AGENT_DIR/ses
 }
 ```
 
-- `prompts.minimumWords`: excludes shorter prompts from `/prompts`, `/prompts last`, and the session picker's first-prompt view. Default: `3`; use `0` to disable.
+- `prompts.minimumWords`: excludes shorter prompts from `/prompts`, `/prompts --last`, and the session picker's first-prompt view. Default: `3`; use `0` to disable.
 - `sessions.autoName.enabled`: enables automatic session naming. Default: `true`.
 - `sessions.autoName.model`: optional `provider/model-id`. It must be available in Pi's current scoped models; otherwise naming is skipped.
 - `sessions.retention.archiveDir`: archive destination. Default: `~/.pi/agent/sessions-archive/`.

@@ -1,5 +1,10 @@
 # Changelog
 
+## [0.4.2] - 21-09-2026
+
+### Changed
+- Use `--last` for direct recall so plain `last` remains available as a session or prompt query.
+
 ## [0.4.1] - 21-09-2026
 
 ### Added

@@ -92,6 +92,7 @@ test("auto-naming runs after the first settled turn with the configured scoped m
   let switchedSession;
   let editorText;
   let customPicker;
+  const notifications = [];
   const pi = {
     on(event, handler) { handlers.set(event, handler); },
     registerCommand(command, definition) { commands.set(command, definition); },
@@ -110,7 +111,7 @@ test("auto-naming runs after the first settled turn with the configured scoped m
     scopedModels: [{ model: configured }],
     sessionManager: { getSessionId: () => "test", getSessionFile: () => null },
     ui: {
-      notify() {},
+      notify(message) { notifications.push(message); },
       setEditorText(value) { editorText = value; },
       async input() { return "inventory"; },
       async select() { return undefined; },
@@ -152,10 +153,15 @@ test("auto-naming runs after the first settled turn with the configured scoped m
     assert.equal(commands.has("history"), false);
     assert.equal(commands.has("prompt-history"), false);
 
-    await commands.get("sessions").handler("last", ctx);
+    await commands.get("sessions").handler("--last", ctx);
     assert.equal(switchedSession, targetSession);
-    await commands.get("prompts").handler("last", ctx);
+    await commands.get("prompts").handler("--last", ctx);
     assert.equal(editorText, "Add session search");
+
+    await commands.get("sessions").handler("last", ctx);
+    await commands.get("prompts").handler("last", ctx);
+    assert.ok(notifications.includes("No sessions match: last"));
+    assert.ok(notifications.includes("No prompts match: last"));
 
     switchedSession = undefined;
     await commands.get("sessions").handler("", ctx);

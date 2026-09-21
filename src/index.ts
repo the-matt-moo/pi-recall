@@ -456,7 +456,7 @@ export default function promptHistory(pi: ExtensionAPI) {
     ctx: Parameters<Parameters<typeof pi.registerCommand>[1]["handler"]>[1],
   ) => {
     const requested = args.trim();
-    const lastOnly = requested === "last";
+    const lastOnly = requested === "--last";
     const pinnedOnly = requested === "pinned" || requested === "--pinned";
     const query = pinnedOnly || lastOnly ? "" : requested;
     const sessions = searchSessions(query, undefined, "name")
@@ -501,7 +501,7 @@ export default function promptHistory(pi: ExtensionAPI) {
   ) => {
     const query = args.trim();
     const records = loadRecords() as PromptRecord[];
-    if (query === "last") {
+    if (query === "--last") {
       const record = records.filter((r) => !r.prompt.startsWith("/") && !isSubagentPrompt(r.prompt) && hasEnoughWords(r.prompt)).at(-1);
       if (!record) {
         ctx.ui.notify("No prompt history recorded yet", "info");
@@ -542,7 +542,7 @@ export default function promptHistory(pi: ExtensionAPI) {
   };
 
   pi.registerCommand("prompts", {
-    description: "Browse or restore prompt history (/prompts [query|last])",
+    description: "Browse or restore prompt history (/prompts [query|--last])",
     handler: handlePromptSearch,
   });
   pi.registerCommand("session-pin", {
@@ -570,7 +570,7 @@ export default function promptHistory(pi: ExtensionAPI) {
     },
   });
   pi.registerCommand("sessions", {
-    description: "Search stored sessions or open the previous one (/sessions [query|pinned|last])",
+    description: "Search stored sessions or open the previous one (/sessions [query|pinned|--last])",
     handler: handleSessionSearch,
   });
   pi.registerCommand("session-prune", {
