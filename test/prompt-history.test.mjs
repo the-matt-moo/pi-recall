@@ -1,15 +1,19 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { cpSync, mkdtempSync, mkdirSync, rmSync, writeFileSync } from "node:fs";
+import { cpSync, existsSync, mkdtempSync, mkdirSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { pathToFileURL } from "node:url";
 import { execFileSync } from "node:child_process";
 import {
   appendAndFlush,
+  deletePromptRecord,
+  deleteSession,
   formatTimestamp,
+  getPromptMetadataKey,
   getSessionsForPrune,
   loadRecords,
+  loadSessionMetadata,
   makeSessionNamePrompt,
   pruneSessions,
   updatePromptMetadata,
@@ -92,6 +96,7 @@ test("auto-naming runs after the first settled turn with the configured scoped m
   let switchedSession;
   let editorText;
   let customPicker;
+  let customAction;
   const notifications = [];
   const pi = {
     on(event, handler) { handlers.set(event, handler); },
@@ -116,7 +121,13 @@ test("auto-naming runs after the first settled turn with the configured scoped m
       async input() { return "inventory"; },
       async select() { return undefined; },
       async custom(factory) {
-        customPicker = factory({ requestRender() {} }, {}, { matches() { return false; } }, () => {});
+        let result = null;
+        customPicker = factory({ requestRender() {} }, {}, { matches() { return false; } }, (value) => { result = value; });
+        if (customAction) {
+          customAction(customPicker);
+          customAction = undefined;
+          return result;
+        }
         return { type: "session", file: targetSession };
       },
     },
@@ -167,10 +178,57 @@ test("auto-naming runs after the first settled turn with the configured scoped m
     await commands.get("sessions").handler("", ctx);
     assert.ok(customPicker);
     assert.equal(switchedSession, targetSession);
+
+    customAction = (picker) => {
+      picker.handleInput("d");
+      picker.handleInput("n");
+      assert.equal(existsSync(targetSession), true, "n must cancel session deletion");
+      picker.handleInput("d");
+      picker.handleInput("y");
+      assert.equal(existsSync(targetSession), false, "y must permanently delete the session file");
+    };
+    await commands.get("sessions").handler("", ctx);
+
+    customAction = (picker) => {
+      picker.handleInput("d");
+      picker.handleInput("n");
+      assert.equal(loadRecords().length, 1, "n must cancel prompt deletion");
+      picker.handleInput("d");
+      picker.handleInput("y");
+      assert.equal(loadRecords().length, 0, "y must permanently delete the prompt record");
+    };
+    await commands.get("prompts").handler("", ctx);
   } finally {
     if (original === undefined) delete process.env.PI_CODING_AGENT_DIR;
     else process.env.PI_CODING_AGENT_DIR = original;
     rmSync(output, { recursive: true, force: true });
+  }
+});
+
+test("permanent deletion removes session files, prompt records, and metadata", () => {
+  const root = mkdtempSync(join(tmpdir(), "pi-history-delete-"));
+  const original = process.env.PI_CODING_AGENT_DIR;
+  process.env.PI_CODING_AGENT_DIR = root;
+  try {
+    const sessionFile = join(root, "session.jsonl");
+    writeFileSync(sessionFile, "session");
+    updateSessionMetadata(sessionFile, { pinned: true });
+    deleteSession(sessionFile);
+    assert.equal(existsSync(sessionFile), false);
+    assert.equal(loadSessionMetadata()[sessionFile], undefined);
+
+    const deleted = { version: 1, timestamp: "2026-09-19T10:00:00.000Z", pid: 1, sessionId: "one", sessionFile, cwd: root, prompt: "delete me", imageCount: 0 };
+    const kept = { ...deleted, timestamp: "2026-09-19T11:00:00.000Z", pid: 2, sessionId: "two", prompt: "keep me" };
+    appendAndFlush(deleted);
+    appendAndFlush(kept);
+    updatePromptMetadata(deleted, { pinned: true });
+    assert.equal(deletePromptRecord(deleted), 1);
+    assert.deepEqual(loadRecords().map((record) => record.prompt), ["keep me"]);
+    assert.equal(loadSessionMetadata()[getPromptMetadataKey(deleted)], undefined);
+  } finally {
+    if (original === undefined) delete process.env.PI_CODING_AGENT_DIR;
+    else process.env.PI_CODING_AGENT_DIR = original;
+    rmSync(root, { recursive: true, force: true });
   }
 });
 

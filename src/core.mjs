@@ -49,12 +49,23 @@ export function loadSessionMetadata() {
   }
 }
 
+function writeSessionMetadata(metadata) {
+  mkdirSync(getHistoryDir(), { recursive: true, mode: 0o700 });
+  writeFileSync(getSessionMetadataFile(), `${JSON.stringify(metadata, null, 2)}\n`, { mode: 0o600 });
+}
+
 export function updateSessionMetadata(file, changes) {
   const metadata = loadSessionMetadata();
   metadata[file] = { ...(metadata[file] ?? {}), ...changes };
-  mkdirSync(getHistoryDir(), { recursive: true, mode: 0o700 });
-  writeFileSync(getSessionMetadataFile(), `${JSON.stringify(metadata, null, 2)}\n`, { mode: 0o600 });
+  writeSessionMetadata(metadata);
   return metadata[file];
+}
+
+function deleteMetadata(key) {
+  const metadata = loadSessionMetadata();
+  if (!(key in metadata)) return;
+  delete metadata[key];
+  writeSessionMetadata(metadata);
 }
 
 export function getPromptMetadataKey(record) {
@@ -132,6 +143,32 @@ export function loadRecords() {
       }
     })
     .sort((a, b) => Date.parse(a.timestamp) - Date.parse(b.timestamp));
+}
+
+export function deletePromptRecord(record) {
+  const key = getPromptMetadataKey(record);
+  let deleted = 0;
+  for (const file of [`${getHistoryFile()}.1`, getHistoryFile()].filter(existsSync)) {
+    const kept = readFileSync(file, "utf8").split(/\r?\n/).filter(Boolean).filter((line) => {
+      try {
+        if (getPromptMetadataKey(JSON.parse(line)) === key) {
+          deleted++;
+          return false;
+        }
+      } catch {
+        // Preserve malformed lines rather than widening a targeted delete.
+      }
+      return true;
+    });
+    writeFileSync(file, kept.length ? `${kept.join("\n")}\n` : "", { mode: 0o600 });
+  }
+  if (deleted) deleteMetadata(key);
+  return deleted;
+}
+
+export function deleteSession(file) {
+  unlinkSync(file);
+  deleteMetadata(file);
 }
 
 export function formatTimestamp(iso) {

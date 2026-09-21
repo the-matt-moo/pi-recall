@@ -1,6 +1,8 @@
 import type { ExtensionAPI, ExtensionContext, Theme } from "@earendil-works/pi-coding-agent";
 import {
   appendAndFlush,
+  deletePromptRecord,
+  deleteSession,
   formatTimestamp,
   getArchiveDir,
   getSessionsForPrune,
@@ -102,6 +104,8 @@ class SessionPicker {
   private searchMode = false;
   private searchQuery = "";
   private selected = 0;
+  private confirmDelete = false;
+  private deleteError = "";
 
   constructor(
     private readonly sessions: SessionSummary[],
@@ -137,12 +141,26 @@ class SessionPicker {
   }
 
   private togglePin() {
-
     const session = this.visibleItems()[this.selected] as SessionSummary | undefined;
     if (!session) return;
     session.pinned = !session.pinned;
     updateSessionMetadata(session.file, { pinned: session.pinned });
     if (this.tab === "pinned" && !session.pinned) this.selected = Math.min(this.selected, Math.max(0, this.visibleItems().length - 1));
+    this.tui.requestRender();
+  }
+
+  private deleteSelected() {
+    const session = this.visibleItems()[this.selected];
+    if (!session) return;
+    try {
+      deleteSession(session.file);
+      this.sessions.splice(this.sessions.indexOf(session), 1);
+      this.selected = Math.min(this.selected, Math.max(0, this.visibleItems().length - 1));
+      this.deleteError = "";
+    } catch (error) {
+      this.deleteError = `Delete failed: ${String(error)}`;
+    }
+    this.confirmDelete = false;
     this.tui.requestRender();
   }
 
@@ -207,17 +225,29 @@ class SessionPicker {
     const bottom = this.theme.fg("border", `╰${"─".repeat(innerWidth)}╯`);
     return [
       top,
-      row(`Sessions · ${this.tab.toUpperCase()} · ${range} · Sort: ${this.sort === "date" ? "Date (newest)" : "Alphabetical"}`),
-      ...(this.filter ? [row(`Session name filter : ${this.filter}`)] : []),
-      row(`Search: ${this.searchQuery || "press / to filter"}${this.searchMode ? "▏" : ""}`),
-      row(`${tab("All Sessions", this.tab === "all")}  ${tab("Pinned Sessions", this.tab === "pinned")}  ${tab("Session by 1st Prompt", this.tab === "opening")}`),
-      row("Tab: switch · s: sort · Space: pin/unpin · Enter: open · Esc: close"),
+      row(`${this.theme.fg("accent", this.theme.bold("Sessions"))} · ${this.theme.fg("warning", this.tab.toUpperCase())} · ${this.theme.fg("dim", range)} · ${this.theme.fg("accent", "Sort:")} ${this.sort === "date" ? "Date (newest)" : "Alphabetical"}`),
+      ...(this.filter ? [row(`${this.theme.fg("accent", "Session name filter:")} ${this.filter}`)] : []),
+      row(`${this.theme.fg("accent", this.theme.bold("Search:"))} ${this.searchQuery || this.theme.fg("dim", "press / to filter")}${this.searchMode ? "▏" : ""}`),
+      row(`${tab("All Sessions", this.tab === "all")}  ${tab("Pinned Sessions", this.tab === "pinned")}  ${tab("Session by Opening Prompt", this.tab === "opening")}`),
+      row(this.confirmDelete
+        ? this.theme.fg("error", "Delete is permanent. Are you sure you want to proceed? [y/n]")
+        : this.deleteError
+          ? this.theme.fg("error", this.deleteError)
+          : `${this.theme.fg("accent", this.theme.bold("Tab"))}: ${this.theme.fg("dim", "switch")} · ${this.theme.fg("accent", this.theme.bold("s"))}: ${this.theme.fg("dim", "sort")} · ${this.theme.fg("accent", this.theme.bold("Space"))}: ${this.theme.fg("dim", "pin/unpin")} · ${this.theme.fg("error", this.theme.bold("d"))}: ${this.theme.fg("dim", "delete")} · ${this.theme.fg("accent", this.theme.bold("Enter"))}: ${this.theme.fg("dim", "open")} · ${this.theme.fg("accent", this.theme.bold("Esc"))}: ${this.theme.fg("dim", "close")}`),
       ...(items.length ? renderedRows : Array.from({ length: maxRows }, (_, index) => row(index === 0 ? (this.tab === "pinned" ? "No pinned sessions." : "No sessions.") : ""))),
       bottom,
     ];
   }
 
   handleInput(data: string) {
+    if (this.confirmDelete) {
+      if (data === "y" || data === "Y") this.deleteSelected();
+      else if (data === "n" || data === "N" || this.keybindings.matches(data, "tui.select.cancel")) {
+        this.confirmDelete = false;
+        this.tui.requestRender();
+      }
+      return;
+    }
     if (this.searchMode) {
       this.handleSearchInput(data);
       return;
@@ -235,6 +265,11 @@ class SessionPicker {
     }
     if (data === "s" || data === "S") return this.switchSort();
     if (data === " ") return this.togglePin();
+    if ((data === "d" || data === "D") && this.visibleItems()[this.selected]) {
+      this.confirmDelete = true;
+      this.deleteError = "";
+      return this.tui.requestRender();
+    }
     if (this.keybindings.matches(data, "tui.select.up")) return this.move(-1);
     if (this.keybindings.matches(data, "tui.select.down")) return this.move(1);
     if (this.keybindings.matches(data, "tui.select.pageUp")) return this.move(-12);
@@ -253,6 +288,8 @@ class PromptPicker {
   private searchMode = false;
   private searchQuery = "";
   private selected = 0;
+  private confirmDelete = false;
+  private deleteError = "";
 
   constructor(
     private readonly prompts: PromptItem[],
@@ -319,6 +356,21 @@ class PromptPicker {
     this.tui.requestRender();
   }
 
+  private deleteSelected() {
+    const prompt = this.visiblePrompts()[this.selected];
+    if (!prompt) return;
+    try {
+      deletePromptRecord(prompt);
+      this.prompts.splice(this.prompts.indexOf(prompt), 1);
+      this.selected = Math.min(this.selected, Math.max(0, this.visiblePrompts().length - 1));
+      this.deleteError = "";
+    } catch (error) {
+      this.deleteError = `Delete failed: ${String(error)}`;
+    }
+    this.confirmDelete = false;
+    this.tui.requestRender();
+  }
+
   render(width: number) {
     const boxWidth = Math.max(40, Math.min(width, 150));
     const innerWidth = boxWidth - 2;
@@ -342,17 +394,29 @@ class PromptPicker {
     const bottom = this.theme.fg("border", `╰${"─".repeat(innerWidth)}╯`);
     return [
       top,
-      row(`Prompt History · ${range} · Sort: ${this.sort === "date" ? "Date (newest)" : "Alphabetical"}`),
+      row(`${this.theme.fg("accent", this.theme.bold("Prompts"))} · ${this.theme.fg("dim", range)} · ${this.theme.fg("accent", "Sort:")} ${this.sort === "date" ? "Date (newest)" : "Alphabetical"}`),
       row(`${this.theme.fg("accent", this.tab === "all" ? "[All Prompts]" : " All Prompts ")}  ${this.theme.fg("accent", this.tab === "pinned" ? "[Pinned Prompts]" : " Pinned Prompts ")}`),
-      ...(this.filter ? [row(`Prompt filter : ${this.filter}`)] : []),
-      row(`Search: ${this.searchQuery || "press / to filter"}${this.searchMode ? "▏" : ""}`),
-      row("Tab: switch · s: sort · Space: pin/unpin · Enter: restore · Esc: close"),
+      ...(this.filter ? [row(`${this.theme.fg("accent", "Prompt filter:")} ${this.filter}`)] : []),
+      row(`${this.theme.fg("accent", this.theme.bold("Search:"))} ${this.searchQuery || this.theme.fg("dim", "press / to filter")}${this.searchMode ? "▏" : ""}`),
+      row(this.confirmDelete
+        ? this.theme.fg("error", "Delete is permanent. Are you sure you want to proceed? [y/n]")
+        : this.deleteError
+          ? this.theme.fg("error", this.deleteError)
+          : `${this.theme.fg("accent", this.theme.bold("Tab"))}: ${this.theme.fg("dim", "switch")} · ${this.theme.fg("accent", this.theme.bold("s"))}: ${this.theme.fg("dim", "sort")} · ${this.theme.fg("accent", this.theme.bold("Space"))}: ${this.theme.fg("dim", "pin/unpin")} · ${this.theme.fg("error", this.theme.bold("d"))}: ${this.theme.fg("dim", "delete")} · ${this.theme.fg("accent", this.theme.bold("Enter"))}: ${this.theme.fg("dim", "restore")} · ${this.theme.fg("accent", this.theme.bold("Esc"))}: ${this.theme.fg("dim", "close")}`),
       ...(prompts.length ? renderedRows : Array.from({ length: maxRows }, (_, index) => row(index === 0 ? "No prompts." : ""))),
       bottom,
     ];
   }
 
   handleInput(data: string) {
+    if (this.confirmDelete) {
+      if (data === "y" || data === "Y") this.deleteSelected();
+      else if (data === "n" || data === "N" || this.keybindings.matches(data, "tui.select.cancel")) {
+        this.confirmDelete = false;
+        this.tui.requestRender();
+      }
+      return;
+    }
     if (this.searchMode) {
       this.handleSearchInput(data);
       return;
@@ -370,6 +434,11 @@ class PromptPicker {
     }
     if (data === "s" || data === "S") return this.switchSort();
     if (data === " ") return this.togglePin();
+    if ((data === "d" || data === "D") && this.visiblePrompts()[this.selected]) {
+      this.confirmDelete = true;
+      this.deleteError = "";
+      return this.tui.requestRender();
+    }
     if (this.keybindings.matches(data, "tui.select.up")) return this.move(-1);
     if (this.keybindings.matches(data, "tui.select.down")) return this.move(1);
     if (this.keybindings.matches(data, "tui.select.pageUp")) return this.move(-12);

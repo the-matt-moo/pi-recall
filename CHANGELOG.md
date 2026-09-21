@@ -1,5 +1,15 @@
 # Changelog
 
+## [0.4.3] - 21-09-2026
+
+### Added
+- Permanently delete a selected session file or prompt history entry from its picker with `d`, followed by `y` confirmation.
+
+### Changed
+- Add color to picker headings, search labels, shortcuts, active modes, and deletion warnings.
+- Rename the session tab to `Session by Opening Prompt`.
+- Update the Pi development dependency to 0.87.0.
+
 ## [0.4.2] - 21-09-2026
 
 ### Changed

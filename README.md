@@ -10,7 +10,7 @@ Persistent session and prompt recall for [Pi](https://github.com/earendil-works/
 - `/prompts` searches and restores recorded prompts.
 - `/sessions --last` opens the most recent session other than the current one.
 - `/prompts --last` restores the most recent prompt to the editor.
-- Sessions and prompts can be pinned; sessions can also be tagged.
+- Sessions and prompts can be pinned or permanently deleted; sessions can also be tagged.
 - New sessions can be named automatically after their first completed turn.
 - Prompt and metadata writes are flushed immediately.
 - The prompt log rolls over at 5 MiB while preserving pinned prompts.
@@ -58,6 +58,7 @@ Picker controls:
 - `Tab`: switch tabs
 - `s`: sort by date or alphabetically
 - `Space`: pin or unpin
+- `d`, then `y`: permanently delete the selected session file or prompt history entry
 - `Enter`: open or restore
 - `Esc`: close
 

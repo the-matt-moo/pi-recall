@@ -1,4 +1,6 @@
 export function appendAndFlush(record: unknown): void;
+export function deletePromptRecord(record: { sessionId?: string; sessionFile?: string | null; timestamp: string; pid: number }): number;
+export function deleteSession(file: string): void;
 export function formatTimestamp(iso: string): string;
 export function updateSessionMetadata(file: string, changes: Record<string, unknown>): Record<string, unknown>;
 export function getPromptMetadataKey(record: { sessionId?: string; sessionFile?: string | null; timestamp: string; pid: number }): string;
