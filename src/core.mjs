@@ -22,7 +22,7 @@ export function getConfigDir() {
 }
 
 export function getHistoryDir() {
-  return join(getConfigDir(), "prompt-history");
+  return join(getConfigDir(), "session-history");
 }
 
 export function getHistoryFile() {

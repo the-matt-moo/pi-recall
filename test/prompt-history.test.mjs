@@ -133,8 +133,8 @@ test("auto-naming runs after the first settled turn with the configured scoped m
 
   const original = process.env.PI_CODING_AGENT_DIR;
   process.env.PI_CODING_AGENT_DIR = output;
-  mkdirSync(join(output, "prompt-history"));
-  writeFileSync(join(output, "prompt-history", "settings.json"), JSON.stringify({ autoName: { model: "openrouter/title-model" } }));
+  mkdirSync(join(output, "session-history"));
+  writeFileSync(join(output, "session-history", "settings.json"), JSON.stringify({ sessions: { autoName: { model: "openrouter/title-model" } } }));
   mkdirSync(join(output, "sessions", "--project--"), { recursive: true });
   const targetSession = join(output, "sessions", "--project--", "target.jsonl");
   writeFileSync(targetSession, [
@@ -188,7 +188,7 @@ test("rollover preserves pinned prompts into the new active file", () => {
     appendAndFlush(record2);
 
     // Artificially fill prompts.jsonl past MAX_BYTES (5 MiB) to trigger rollover
-    const historyFile = join(root, "prompt-history", "prompts.jsonl");
+    const historyFile = join(root, "session-history", "prompts.jsonl");
     const bigPadding = "x".repeat(5 * 1024 * 1024 + 10);
     appendAndFlush({
       version: 1,

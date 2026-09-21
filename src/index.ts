@@ -28,7 +28,13 @@ export interface PromptRecord {
   imageCount: number;
 }
 
-type AutoNameSettings = { autoName?: { enabled?: boolean; model?: string } };
+type HistorySettings = {
+  prompts?: { minimumWords?: number };
+  sessions?: {
+    autoName?: { enabled?: boolean; model?: string };
+    retention?: { archiveDir?: string; ignorePinned?: boolean; ignoreNamed?: boolean };
+  };
+};
 type SessionSummary = ReturnType<typeof searchSessions>[number];
 type PickerResult = { type: "session"; file: string } | { type: "prompt"; prompt: string };
 type SessionDone = (result: PickerResult | null) => void;
@@ -72,6 +78,15 @@ function isSubagentOpeningPrompt(session: SessionSummary) {
   return isSubagentPrompt(session.firstPrompt ?? "");
 }
 
+function minPromptWords() {
+  const value = Number((loadSettings() as HistorySettings).prompts?.minimumWords);
+  return Number.isFinite(value) ? Math.max(0, Math.floor(value)) : 3;
+}
+
+function hasEnoughWords(prompt: string) {
+  return prompt.trim().split(/\s+/).filter(Boolean).length >= minPromptWords();
+}
+
 function textFromContent(content: unknown) {
   if (typeof content === "string") return content;
   if (!Array.isArray(content)) return "";
@@ -102,7 +117,7 @@ class SessionPicker {
 
   private visibleItems() {
     const items = this.tab === "opening"
-      ? this.sessions.filter((session) => !isSubagentOpeningPrompt(session))
+      ? this.sessions.filter((session) => !isSubagentOpeningPrompt(session) && hasEnoughWords(session.firstPrompt ?? ""))
       : this.tab === "pinned"
         ? this.sessions.filter((session) => session.pinned)
         : this.sessions;
@@ -371,12 +386,12 @@ export default function promptHistory(pi: ExtensionAPI) {
   let namingQueued = false;
 
   const autoName = async (prompt: string, ctx: ExtensionContext) => {
-    const settings = loadSettings() as AutoNameSettings;
-    if (settings.autoName?.enabled === false || pi.getSessionName()) return;
+    const settings = (loadSettings() as HistorySettings).sessions;
+    if (settings?.autoName?.enabled === false || pi.getSessionName()) return;
 
-    const model = selectNameModel(ctx.scopedModels, ctx.model, settings.autoName?.model);
+    const model = selectNameModel(ctx.scopedModels, ctx.model, settings?.autoName?.model);
     if (!model) {
-      if (settings.autoName?.model) {
+      if (settings?.autoName?.model) {
         ctx.ui.notify("Auto-naming skipped: configured model is not session-scoped", "warning");
       }
       return;
@@ -432,7 +447,7 @@ export default function promptHistory(pi: ExtensionAPI) {
     ctx: Parameters<Parameters<typeof pi.registerCommand>[1]["handler"]>[1],
   ) => {
     const records = loadRecords() as PromptRecord[];
-    const filtered = records.filter((r) => !r.prompt.startsWith("/"));
+    const filtered = records.filter((r) => !r.prompt.startsWith("/") && hasEnoughWords(r.prompt));
     if (!filtered.length) {
       ctx.ui.notify("No prompt history recorded yet", "info");
       return;
@@ -541,7 +556,7 @@ export default function promptHistory(pi: ExtensionAPI) {
     const metadata = loadSessionMetadata();
     const uniquePrompts = new Map<string, PromptItem>();
     for (const record of loadRecords() as PromptRecord[]) {
-      if (record.prompt.startsWith("/") || isSubagentPrompt(record.prompt)) continue;
+      if (record.prompt.startsWith("/") || isSubagentPrompt(record.prompt) || !hasEnoughWords(record.prompt)) continue;
       const prompt = { ...record, ...(metadata[getPromptMetadataKey(record)] ?? {}) } as PromptItem;
       if (normalized && !prompt.prompt.toLocaleLowerCase().replace(/\s+/g, " ").includes(normalized)) continue;
       const existing = uniquePrompts.get(prompt.prompt);
@@ -600,16 +615,15 @@ export default function promptHistory(pi: ExtensionAPI) {
       }
     },
   });
-  pi.registerCommand("session-search", {
+  pi.registerCommand("sessions", {
     description: "Search all stored sessions by name, prompt, date, tag, or text",
     handler: handleSessionSearch,
   });
-  pi.registerCommand("sessions", { description: "Alias for /session-search", handler: handleSessionSearch });
   pi.registerCommand("session-prune", {
     description: "Archive stale sessions older than N days (default 90) (/session-prune [days])",
     handler: async (args, ctx) => {
       const days = Number(args.trim()) || 90;
-      const settings = (loadSettings() as { retention?: { archiveDir?: string; ignorePinned?: boolean; ignoreNamed?: boolean } })?.retention ?? {};
+      const settings = (loadSettings() as HistorySettings).sessions?.retention ?? {};
       const candidates = getSessionsForPrune({
         maxAgeDays: days,
         ignorePinned: settings.ignorePinned ?? true,

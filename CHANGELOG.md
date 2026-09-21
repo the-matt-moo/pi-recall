@@ -1,5 +1,15 @@
 # Changelog
 
+## [0.4.0] - 21-09-2026
+
+### Added
+- New `prompts.minimumWords` setting (default `3`) filters short prompts from `/history`, `/prompts`, and the Session by 1st Prompt tab; set to `0` to disable.
+
+### Changed
+- Settings schema nested: auto-naming now lives at `sessions.autoName` (was top-level `autoName`) and retention at `sessions.retention` (was top-level `retention`).
+- History data directory renamed from `prompt-history` to `session-history` under `~/.pi/agent/` (or `$PI_CODING_AGENT_DIR`).
+- `/session-search` removed; `/sessions` is now the sole command (was primary+alias since 0.2.3).
+
 ## [0.3.1] - 21-09-2026
 
 ### Added
