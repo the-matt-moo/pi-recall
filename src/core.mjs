@@ -12,7 +12,7 @@ import {
   writeFileSync,
 } from "node:fs";
 import { homedir } from "node:os";
-import { join } from "node:path";
+import { dirname, join, relative, resolve } from "node:path";
 import { spawnSync } from "node:child_process";
 
 export const MAX_BYTES = 5 * 1024 * 1024;
@@ -31,6 +31,38 @@ export function getHistoryFile() {
 
 export function getSettingsFile() {
   return join(getHistoryDir(), "settings.json");
+}
+
+export function getArchiveDir() {
+  return join(getConfigDir(), "sessions-archive");
+}
+
+export function getSessionMetadataFile() {
+  return join(getHistoryDir(), "session-metadata.json");
+}
+
+export function loadSessionMetadata() {
+  try {
+    return JSON.parse(readFileSync(getSessionMetadataFile(), "utf8"));
+  } catch {
+    return {};
+  }
+}
+
+export function updateSessionMetadata(file, changes) {
+  const metadata = loadSessionMetadata();
+  metadata[file] = { ...(metadata[file] ?? {}), ...changes };
+  mkdirSync(getHistoryDir(), { recursive: true, mode: 0o700 });
+  writeFileSync(getSessionMetadataFile(), `${JSON.stringify(metadata, null, 2)}\n`, { mode: 0o600 });
+  return metadata[file];
+}
+
+export function getPromptMetadataKey(record) {
+  return `prompt:${record.sessionId ?? record.sessionFile ?? "unknown"}:${record.timestamp}:${record.pid}`;
+}
+
+export function updatePromptMetadata(record, changes) {
+  return updateSessionMetadata(getPromptMetadataKey(record), changes);
 }
 
 export function loadSettings() {
@@ -55,12 +87,35 @@ export function appendAndFlush(record) {
 
   if (statSync(file).size <= MAX_BYTES) return;
 
+  // Preserve pinned prompts across rollover so they are never lost
+  const old1 = `${file}.1`;
+  const metadata = loadSessionMetadata();
+  const pinnedPrompts = [old1, file]
+    .filter(existsSync)
+    .flatMap((f) => readFileSync(f, "utf8").split(/\r?\n/))
+    .filter(Boolean)
+    .flatMap((line) => {
+      try {
+        const parsed = JSON.parse(line);
+        const meta = metadata[getPromptMetadataKey(parsed)];
+        return meta?.pinned ? [line] : [];
+      } catch {
+        return [];
+      }
+    });
+
   try {
-    unlinkSync(`${file}.1`);
+    unlinkSync(old1);
   } catch (error) {
     if (error.code !== "ENOENT") throw error;
   }
-  renameSync(file, `${file}.1`);
+  renameSync(file, old1);
+
+  if (pinnedPrompts.length > 0) {
+    // Write unique pinned prompts back into the new active file
+    const unique = [...new Set(pinnedPrompts)];
+    writeFileSync(file, `${unique.join("\n")}\n`, { mode: 0o600 });
+  }
 }
 
 export function loadRecords() {
@@ -152,16 +207,20 @@ export function readSessionSummary(file) {
   }
 }
 
-export function searchSessions(query = "", sessionDir = join(getConfigDir(), "sessions")) {
-  const terms = query.toLocaleLowerCase().trim().split(/\s+/).filter(Boolean);
+export function searchSessions(query = "", sessionDir = join(getConfigDir(), "sessions"), field = "all") {
+  const normalizedQuery = query.toLocaleLowerCase().trim().replace(/\s+/g, " ");
+  const metadata = loadSessionMetadata();
   return sessionFiles(sessionDir)
     .map(readSessionSummary)
     .filter(Boolean)
+    .map((session) => ({ ...session, ...(metadata[session.file] ?? {}) }))
     .filter((session) => {
-      const text = `${session.name} ${session.firstPrompt} ${session.timestamp} ${formatTimestamp(session.timestamp)} ${session.fullText}`.toLocaleLowerCase();
-      return terms.every((term) => text.includes(term));
+      const text = field === "name"
+        ? (session.name || session.firstPrompt)
+        : `${session.name} ${session.firstPrompt} ${session.timestamp} ${formatTimestamp(session.timestamp)} ${session.fullText} ${(session.tags ?? []).join(" ")}`;
+      return !normalizedQuery || text.toLocaleLowerCase().replace(/\s+/g, " ").includes(normalizedQuery);
     })
-    .sort((a, b) => Date.parse(b.timestamp) - Date.parse(a.timestamp));
+    .sort((a, b) => Number(b.pinned) - Number(a.pinned) || Date.parse(b.timestamp) - Date.parse(a.timestamp));
 }
 
 export function makeSessionNamePrompt(initialPrompt) {
@@ -185,6 +244,55 @@ export function normalizeSessionName(value) {
 export function selectNameModel(scopedModels, activeModel, requestedModel) {
   if (!requestedModel) return activeModel;
   return scopedModels.find(({ model }) => `${model.provider}/${model.id}` === requestedModel)?.model;
+}
+
+export function getSessionsForPrune(options = {}) {
+  const {
+    maxAgeDays = 90,
+    ignorePinned = true,
+    ignoreNamed = false,
+    sessionDir = join(getConfigDir(), "sessions"),
+    now = Date.now(),
+  } = options;
+
+  const metadata = loadSessionMetadata();
+  const cutoffMs = now - maxAgeDays * 24 * 60 * 60 * 1000;
+
+  return sessionFiles(sessionDir)
+    .map(readSessionSummary)
+    .filter(Boolean)
+    .map((s) => ({ ...s, ...(metadata[s.file] ?? {}) }))
+    .filter((s) => {
+      if (ignorePinned && s.pinned) return false;
+      if (ignoreNamed && s.name) return false;
+      const sessionTime = s.timestamp ? Date.parse(s.timestamp) : statSync(s.file).mtimeMs;
+      return !Number.isNaN(sessionTime) && sessionTime < cutoffMs;
+    })
+    .sort((a, b) => (Date.parse(a.timestamp) || 0) - (Date.parse(b.timestamp) || 0));
+}
+
+export function pruneSessions(options = {}) {
+  const {
+    archiveDir = getArchiveDir(),
+    dryRun = false,
+    sessionDir = join(getConfigDir(), "sessions"),
+    ...filterOptions
+  } = options;
+
+  const candidates = getSessionsForPrune({ sessionDir, ...filterOptions });
+  const archived = [];
+
+  for (const session of candidates) {
+    const relPath = relative(sessionDir, session.file);
+    const destPath = resolve(archiveDir, relPath);
+    if (!dryRun) {
+      mkdirSync(dirname(destPath), { recursive: true, mode: 0o700 });
+      renameSync(session.file, destPath);
+    }
+    archived.push({ file: session.file, dest: destPath, name: session.name, timestamp: session.timestamp });
+  }
+
+  return { archived, dryRun, archiveDir };
 }
 
 export function launchPi(record, resend) {

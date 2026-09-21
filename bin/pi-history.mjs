@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-import { formatTimestamp, getHistoryFile, launchPi, loadRecords } from "../src/core.mjs";
+import { formatTimestamp, getArchiveDir, getHistoryFile, launchPi, loadRecords, pruneSessions } from "../src/core.mjs";
 
 function latest() {
   const records = loadRecords();
@@ -38,7 +38,27 @@ if (command === "list" || /^\d+$/.test(command)) {
   launchPi(latest(), false);
 } else if (command === "resend") {
   launchPi(latest(), true);
+} else if (command === "prune") {
+  const isDryRun = process.argv.includes("--dry-run");
+  const daysArg = process.argv.find((arg) => /^--days=\d+$/.test(arg));
+  const maxAgeDays = daysArg ? Number(daysArg.split("=")[1]) : (Number.isInteger(Number(value)) && Number(value) > 0 ? Number(value) : 90);
+
+  const result = pruneSessions({
+    maxAgeDays,
+    dryRun: isDryRun,
+    ignorePinned: !process.argv.includes("--include-pinned"),
+    ignoreNamed: process.argv.includes("--ignore-named"),
+  });
+
+  if (!result.archived.length) {
+    console.log(`No sessions older than ${maxAgeDays} days found to archive.`);
+  } else {
+    console.log(`${isDryRun ? "[DRY RUN] Would archive" : "Archived"} ${result.archived.length} session(s) older than ${maxAgeDays} days to ${result.archiveDir}:`);
+    for (const item of result.archived) {
+      console.log(`  - [${formatTimestamp(item.timestamp)}] ${item.name || "(unnamed)"}\n    ${item.file} -> ${item.dest}`);
+    }
+  }
 } else {
-  console.log("Usage: pi-history [list [N]|N|last|session|path|resume|resend]");
+  console.log("Usage: pi-history [list [N]|N|last|session|path|resume|resend|prune [--dry-run] [--days=N]]");
   process.exitCode = 1;
 }
