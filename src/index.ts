@@ -412,7 +412,7 @@ export default function promptHistory(pi: ExtensionAPI) {
   };
 
   pi.on("before_agent_start", (event, ctx) => {
-    // Skip slash commands (/reload, /history, etc.)
+    // Skip slash commands (/reload, /sessions, etc.)
     if (event.prompt.startsWith("/")) return;
 
     try {
@@ -442,69 +442,6 @@ export default function promptHistory(pi: ExtensionAPI) {
     void autoName(initialPrompt, ctx);
   });
 
-  const handleHistoryCommand = async (
-    args: string,
-    ctx: Parameters<Parameters<typeof pi.registerCommand>[1]["handler"]>[1],
-  ) => {
-    const records = loadRecords() as PromptRecord[];
-    const filtered = records.filter((r) => !r.prompt.startsWith("/") && hasEnoughWords(r.prompt));
-    if (!filtered.length) {
-      ctx.ui.notify("No prompt history recorded yet", "info");
-      return;
-    }
-
-    const trimmed = args.trim();
-    const recent = filtered.slice(-20).reverse();
-
-    if (trimmed === "last") {
-      const record = filtered.at(-1)!;
-      ctx.ui.setEditorText(record.prompt);
-      ctx.ui.notify("Loaded last prompt into editor", "info");
-      return;
-    }
-
-    if (/^\d+$/.test(trimmed)) {
-      const index = Number(trimmed);
-      const record = recent[index - 1];
-      if (!record) {
-        ctx.ui.notify(`Prompt #${index} not found in recent history`, "warning");
-        return;
-      }
-      ctx.ui.setEditorText(record.prompt);
-      ctx.ui.notify(`Loaded prompt #${index} into editor`, "info");
-      return;
-    }
-
-    if (trimmed.startsWith("send")) {
-      const target = trimmed.replace(/^send\s*/, "");
-      const record = target === "last" || !target ? records.at(-1) : recent[Number(target) - 1];
-      if (!record) {
-        ctx.ui.notify("Target prompt not found to send", "warning");
-        return;
-      }
-      pi.sendUserMessage(record.prompt);
-      return;
-    }
-
-    if (!ctx.hasUI) {
-      const record = filtered.at(-1)!;
-      ctx.ui.notify(`Last prompt: ${record.prompt}`, "info");
-      return;
-    }
-
-    const options = recent.map((record, index) => {
-      const preview = record.prompt.replace(/[\r\n\t]+/g, " ").trim().slice(0, 70);
-      return `${index + 1}. [${formatTimestamp(record.timestamp)}] ${preview}`;
-    });
-    const choice = await ctx.ui.select("Select prompt from history:", options);
-    const index = choice ? Number(choice.match(/^(\d+)\./)?.[1]) - 1 : -1;
-    const record = recent[index];
-    if (!record) return;
-
-    ctx.ui.setEditorText(record.prompt);
-    ctx.ui.notify(`Prompt #${index + 1} restored to editor - press Enter to run`, "info");
-  };
-
   const updateCurrentSession = (ctx: Parameters<Parameters<typeof pi.registerCommand>[1]["handler"]>[1], changes: Record<string, unknown>) => {
     const file = ctx.sessionManager.getSessionFile();
     if (!file) {
@@ -519,15 +456,28 @@ export default function promptHistory(pi: ExtensionAPI) {
     ctx: Parameters<Parameters<typeof pi.registerCommand>[1]["handler"]>[1],
   ) => {
     const requested = args.trim();
+    const lastOnly = requested === "last";
     const pinnedOnly = requested === "pinned" || requested === "--pinned";
-    const query = pinnedOnly ? "" : requested;
-    if (query === undefined) return;
+    const query = pinnedOnly || lastOnly ? "" : requested;
     const sessions = searchSessions(query, undefined, "name")
       .filter((s) => !s.firstPrompt?.startsWith("/"))
       .filter((s) => !isSubagentOpeningPrompt(s))
       .filter((s) => !pinnedOnly || s.pinned);
     if (!sessions.length) {
       ctx.ui.notify(`No sessions match: ${query || "all sessions"}`, "info");
+      return;
+    }
+    if (lastOnly) {
+      const session = sessions
+        .sort((a, b) => Date.parse(b.timestamp) - Date.parse(a.timestamp))
+        .find((s) => s.file !== ctx.sessionManager.getSessionFile());
+      if (!session) {
+        ctx.ui.notify("No previous session found", "info");
+        return;
+      }
+      await ctx.switchSession(session.file, {
+        withSession: async (nextCtx) => nextCtx.ui.notify("Switched session", "info"),
+      });
       return;
     }
     if (!ctx.hasUI) {
@@ -549,13 +499,22 @@ export default function promptHistory(pi: ExtensionAPI) {
     args: string,
     ctx: Parameters<Parameters<typeof pi.registerCommand>[1]["handler"]>[1],
   ) => {
-    const requested = args.trim();
-    const query = requested;
-    if (query === undefined) return;
+    const query = args.trim();
+    const records = loadRecords() as PromptRecord[];
+    if (query === "last") {
+      const record = records.filter((r) => !r.prompt.startsWith("/") && !isSubagentPrompt(r.prompt) && hasEnoughWords(r.prompt)).at(-1);
+      if (!record) {
+        ctx.ui.notify("No prompt history recorded yet", "info");
+        return;
+      }
+      ctx.ui.setEditorText(record.prompt);
+      ctx.ui.notify("Loaded last prompt into editor", "info");
+      return;
+    }
     const normalized = query.toLocaleLowerCase().trim().replace(/\s+/g, " ");
     const metadata = loadSessionMetadata();
     const uniquePrompts = new Map<string, PromptItem>();
-    for (const record of loadRecords() as PromptRecord[]) {
+    for (const record of records) {
       if (record.prompt.startsWith("/") || isSubagentPrompt(record.prompt) || !hasEnoughWords(record.prompt)) continue;
       const prompt = { ...record, ...(metadata[getPromptMetadataKey(record)] ?? {}) } as PromptItem;
       if (normalized && !prompt.prompt.toLocaleLowerCase().replace(/\s+/g, " ").includes(normalized)) continue;
@@ -582,13 +541,8 @@ export default function promptHistory(pi: ExtensionAPI) {
     }
   };
 
-  pi.registerCommand("history", {
-    description: "Browse or restore prompts from history (/history [last|N|send])",
-    handler: handleHistoryCommand,
-  });
-  pi.registerCommand("prompt-history", { description: "Alias for /history", handler: handleHistoryCommand });
   pi.registerCommand("prompts", {
-    description: "Browse and filter prompt history (/prompts [query])",
+    description: "Browse or restore prompt history (/prompts [query|last])",
     handler: handlePromptSearch,
   });
   pi.registerCommand("session-pin", {
@@ -616,7 +570,7 @@ export default function promptHistory(pi: ExtensionAPI) {
     },
   });
   pi.registerCommand("sessions", {
-    description: "Search all stored sessions by name, prompt, date, tag, or text",
+    description: "Search stored sessions or open the previous one (/sessions [query|pinned|last])",
     handler: handleSessionSearch,
   });
   pi.registerCommand("session-prune", {

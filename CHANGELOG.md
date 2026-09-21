@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.4.1] - 21-09-2026
+
+### Added
+- `/sessions last` opens the newest saved session other than the current session.
+- `/prompts last` restores the newest eligible prompt to the editor.
+
+### Removed
+- `/history` and `/prompt-history`; use `/prompts` for prompt recall.
+
+### Changed
+- Rewrote the README around the consolidated session and prompt commands.
+
 ## [0.4.0] - 21-09-2026
 
 ### Added

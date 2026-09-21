@@ -90,6 +90,7 @@ test("auto-naming runs after the first settled turn with the configured scoped m
   let name;
   let calledModel;
   let switchedSession;
+  let editorText;
   let customPicker;
   const pi = {
     on(event, handler) { handlers.set(event, handler); },
@@ -110,7 +111,7 @@ test("auto-naming runs after the first settled turn with the configured scoped m
     sessionManager: { getSessionId: () => "test", getSessionFile: () => null },
     ui: {
       notify() {},
-      setEditorText() {},
+      setEditorText(value) { editorText = value; },
       async input() { return "inventory"; },
       async select() { return undefined; },
       async custom(factory) {
@@ -148,6 +149,15 @@ test("auto-naming runs after the first settled turn with the configured scoped m
     await new Promise((resolve) => setTimeout(resolve, 20));
     assert.deepEqual(calledModel, configured);
     assert.equal(name, "Refactor Session Search");
+    assert.equal(commands.has("history"), false);
+    assert.equal(commands.has("prompt-history"), false);
+
+    await commands.get("sessions").handler("last", ctx);
+    assert.equal(switchedSession, targetSession);
+    await commands.get("prompts").handler("last", ctx);
+    assert.equal(editorText, "Add session search");
+
+    switchedSession = undefined;
     await commands.get("sessions").handler("", ctx);
     assert.ok(customPicker);
     assert.equal(switchedSession, targetSession);

@@ -2,59 +2,70 @@
 
 # pi-session-history
 
-Session and prompt history management for [Pi](https://github.com/earendil-works/pi-mono). Organize conversations with human-readable names, search session history, and instantly recall prompts—all persisted to a rolling JSONL log for seamless recovery when sessions are abruptly terminated by external processes (e.g., Bitdefender, OS kills).
+Persistent session and prompt recall for [Pi](https://github.com/earendil-works/pi-mono). It names sessions, searches saved conversations, restores prompts, and keeps a crash-safe prompt log.
 
 ## Features
 
-- **Synchronous & Flushed**: Flushes and `fsync`s prompt and session metadata immediately in `before_agent_start`.
-- **In-Session History**: `/history` lists recent prompts and restores them into the editor.
-- **Auto Names**: Names a new session after its first settled turn, without interrupting the session.
-- **Session Search**: Searches every stored session by title, initial prompt, timestamp, tags, or conversation text, then switches to it.
-- **Pinned Sessions**: Pin important sessions and add tags; pinned sessions appear first for quick recall.
-- **Safe Retention & Archiving**: Archive stale sessions (>N days, default 90) to `~/.pi/agent/sessions-archive/` via `/session-prune` or CLI `pi-history prune`. Pinned sessions and pinned prompts are immune.
-- **Host Terminal CLI**: `pi-history` command for crash recovery outside Pi when Pi is dead.
-- **Rolling Log**: 5 MiB size cap with `.1` rollover at `~/.pi/agent/session-history/prompts.jsonl`. Pinned prompts are preserved across rollover.
+- `/sessions` searches and opens saved sessions.
+- `/prompts` searches and restores recorded prompts.
+- `/sessions last` opens the most recent session other than the current one.
+- `/prompts last` restores the most recent prompt to the editor.
+- Sessions and prompts can be pinned; sessions can also be tagged.
+- New sessions can be named automatically after their first completed turn.
+- Prompt and metadata writes are flushed immediately.
+- The prompt log rolls over at 5 MiB while preserving pinned prompts.
+- Old sessions can be archived from Pi or the host terminal.
 
-## Installation
+## Install
 
-### As a Pi Package (Recommended)
+Recommended Pi package install:
 
 ```bash
 pi install git:github.com/the-matt-moo/pi-session-history
 ```
 
-### Via npm (Global CLI & Extension)
+Global install, including the `pi-history` host command:
 
 ```bash
 npm install -g git+https://github.com/the-matt-moo/pi-session-history.git
 ```
 
-Or for local development:
+Local development:
 
 ```bash
 git clone https://github.com/the-matt-moo/pi-session-history.git
 pi install ./pi-session-history
 ```
 
-## Usage
+## Pi commands
 
-### Inside Pi
+| Command | Action |
+| --- | --- |
+| `/sessions` | Open all saved sessions. |
+| `/sessions <query>` | Filter by session name or first prompt. |
+| `/sessions pinned` | Open pinned sessions only. |
+| `/sessions last` | Open the newest saved session other than the current session. |
+| `/prompts` | Open recorded prompts. |
+| `/prompts <query>` | Filter prompts by text. |
+| `/prompts last` | Restore the newest eligible prompt to the editor. |
+| `/session-pin` | Toggle the current session pin. |
+| `/session-tag <tag>` | Toggle a single-word tag on the current session. |
+| `/session-prune [days]` | Archive old sessions; defaults to 90 days and asks for confirmation. |
 
-- `/history`: Open interactive selector of recent prompts. Selecting one restores it directly to the editor.
-- `/history last`: Restore the immediate previous prompt into the editor.
-- `/history <N>`: Restore the Nth previous prompt into the editor.
-- `/history send [last|<N>]`: Send the prompt immediately without waiting for Enter.
-- `/sessions [query]`: Search all stored sessions; leave the search blank for **ALL sessions**, or enter any partial/full session name to filter matches (case-insensitive). The active filter is shown in the modal. Opens a scrollable modal with All Sessions, Pinned Sessions, and Session by 1st Prompt tabs. Press `/` to search/filter live inside the modal, Tab to switch tabs, Space to pin/unpin the selected session, Enter to open it, and Esc to close.
-- `/prompts [query]`: Browse prompt history in a scrollable modal; leave blank for all prompts or enter a case-insensitive partial/full filter. The modal shows unique prompts without timestamps and has All Prompts and Pinned Prompts tabs; press `/` to search/filter live, Tab to switch, Space to pin/unpin, and Enter to restore.
-- `/session-pin`: Toggle the current session's pin. Pinned sessions appear first and show `[PIN]`.
-- `/session-tag <tag>`: Toggle a tag on the current session. Tags are searchable and shown in the picker.
-- `/session-prune [days]`: Archive stale sessions older than N days (default 90) to `sessions-archive/`. Confirms before moving; respects pinned session immunity.
+Picker controls:
 
-Session pins and tags are stored separately from Pi's session files at `~/.pi/agent/session-history/session-metadata.json` (or under `$PI_CODING_AGENT_DIR`).
+- `/`: search inside the picker
+- `Tab`: switch tabs
+- `s`: sort by date or alphabetically
+- `Space`: pin or unpin
+- `Enter`: open or restore
+- `Esc`: close
 
-### Settings
+Session pins, prompt pins, and tags are stored under `~/.pi/agent/session-history/`, or under `$PI_CODING_AGENT_DIR/session-history/` when that variable is set.
 
-Create user-scoped settings at `~/.pi/agent/session-history/settings.json` (or `$PI_CODING_AGENT_DIR/session-history/settings.json`):
+## Settings
+
+Create `~/.pi/agent/session-history/settings.json`, or `$PI_CODING_AGENT_DIR/session-history/settings.json`:
 
 ```json
 {
@@ -75,46 +86,35 @@ Create user-scoped settings at `~/.pi/agent/session-history/settings.json` (or `
 }
 ```
 
-`prompts.minimumWords` filters short prompts from `/history`, `/prompts`, and the Session by 1st Prompt tab; it defaults to `3`. Set it to `0` to disable the filter.
+- `prompts.minimumWords`: excludes shorter prompts from `/prompts`, `/prompts last`, and the session picker's first-prompt view. Default: `3`; use `0` to disable.
+- `sessions.autoName.enabled`: enables automatic session naming. Default: `true`.
+- `sessions.autoName.model`: optional `provider/model-id`. It must be available in Pi's current scoped models; otherwise naming is skipped.
+- `sessions.retention.archiveDir`: archive destination. Default: `~/.pi/agent/sessions-archive/`.
+- `sessions.retention.ignorePinned`: prevents pinned sessions from being archived. Default: `true`.
+- `sessions.retention.ignoreNamed`: prevents named sessions from being archived. Default: `false`.
 
-Session auto-naming uses the current session model by default. A configured model must be visible in Pi's current `/scoped-models`; otherwise naming is skipped. Set `sessions.autoName.enabled` to `false` to disable auto-naming.
+## Host terminal
 
-- `sessions.retention.ignorePinned`: `true` by default (pinned sessions are never pruned).
-- `sessions.retention.ignoreNamed`: `false` by default (named sessions older than 90 days can be pruned unless pinned).
+`pi-history` remains available outside Pi for crash recovery:
 
-### Outside Pi (Host Terminal)
-
-When Pi is killed or closed:
-
-```bash
-# List last 10 prompts with timestamps, session ID, and session file
-pi-history list 10
-
-# Print last prompt raw (useful for piping or clipboard)
-pi-history last
-
-# Print session file or ID for last prompt
-pi-history session
-
-# Resume the last session in Pi
-pi-history resume
-
-# Relaunch Pi and resend the crashed prompt into that session
-pi-history resend
-
-# Output path to the log file
-pi-history path
-
-# Dry run session pruning older than 90 days
-pi-history prune --dry-run
-
-# Archive sessions older than 60 days
-pi-history prune 60
+```text
+pi-history list [N]                List recent prompts; default 10
+pi-history N                       List the last N prompts
+pi-history last                    Print the latest prompt
+pi-history session                 Print its session file or ID
+pi-history resume                  Resume its session in Pi
+pi-history resend                  Resume and resend the prompt
+pi-history path                    Print the prompt-log path
+pi-history prune [days]            Archive old sessions; default 90 days
+pi-history prune --dry-run         Preview archival
+pi-history prune --days=N          Set the age threshold
+pi-history prune --include-pinned  Allow pinned sessions to be archived
+pi-history prune --ignore-named    Preserve named sessions
 ```
 
-## Log Format
+## Data
 
-Stored at `~/.pi/agent/session-history/prompts.jsonl` (or `$PI_CODING_AGENT_DIR/session-history/prompts.jsonl`):
+Prompts are stored in `~/.pi/agent/session-history/prompts.jsonl`, or `$PI_CODING_AGENT_DIR/session-history/prompts.jsonl`:
 
 ```json
 {
@@ -128,6 +128,8 @@ Stored at `~/.pi/agent/session-history/prompts.jsonl` (or `$PI_CODING_AGENT_DIR/
   "imageCount": 0
 }
 ```
+
+Slash commands and subagent prompts are excluded from prompt browsing. Prompt pins and session metadata are stored separately from Pi's session files.
 
 ## License
 
