@@ -98,6 +98,40 @@ function textFromContent(content: unknown) {
     .join(" ");
 }
 
+function highlightMatch(text: string, query: string, theme: Theme, selected: boolean) {
+  const trimmed = query.trim();
+  if (!trimmed) {
+    return selected ? theme.fg("accent", text) : text;
+  }
+  const lowerText = text.toLocaleLowerCase();
+  const lowerQuery = trimmed.toLocaleLowerCase();
+  let result = "";
+  let lastIndex = 0;
+  let matchIndex = lowerText.indexOf(lowerQuery, lastIndex);
+
+  if (matchIndex === -1) {
+    return selected ? theme.fg("accent", text) : text;
+  }
+
+  while (matchIndex !== -1) {
+    if (matchIndex > lastIndex) {
+      const before = text.slice(lastIndex, matchIndex);
+      result += selected ? theme.fg("accent", before) : before;
+    }
+    const match = text.slice(matchIndex, matchIndex + trimmed.length);
+    result += theme.bold(theme.underline(theme.bg("searchMatchBg", theme.fg("searchMatchText", match))));
+    lastIndex = matchIndex + trimmed.length;
+    matchIndex = lowerText.indexOf(lowerQuery, lastIndex);
+  }
+
+  if (lastIndex < text.length) {
+    const after = text.slice(lastIndex);
+    result += selected ? theme.fg("accent", after) : after;
+  }
+
+  return result;
+}
+
 class SessionPicker {
   private tab: "all" | "pinned" | "opening";
   private sort: "date" | "alpha" = "date";
@@ -182,14 +216,21 @@ class SessionPicker {
       this.searchQuery = "";
     } else if (this.keybindings.matches(data, "tui.select.confirm")) {
       this.searchMode = false;
+    } else if (this.keybindings.matches(data, "tui.select.up")) {
+      this.searchMode = false;
+      return this.move(-1);
+    } else if (this.keybindings.matches(data, "tui.select.down")) {
+      this.searchMode = false;
+      return this.move(1);
     } else if (this.keybindings.matches(data, "tui.input.backspace") || data === "\x7f" || data === "\b") {
       this.searchQuery = this.searchQuery.slice(0, -1);
+      this.selected = 0;
     } else if (data.length === 1 && data.charCodeAt(0) >= 32) {
       this.searchQuery += data;
+      this.selected = 0;
     } else {
       return;
     }
-    this.selected = 0;
     this.tui.requestRender();
   }
 
@@ -214,7 +255,8 @@ class SessionPicker {
       const marker = (item as SessionSummary).pinned ? "[PIN] " : "      ";
       const line = `${marker}[${formatTimestamp(item.timestamp)}] ${title.replace(/[\r\n\t]+/g, " ")}${tags}`;
       const selected = start + index === this.selected;
-      return row(`${selected ? this.theme.fg("accent", "❯ ") : "  "}${selected ? this.theme.fg("accent", line) : line}`);
+      const content = highlightMatch(line, this.searchQuery || this.filter, this.theme, selected);
+      return row(`${selected ? this.theme.fg("accent", "❯ ") : "  "}${content}`);
     });
     const renderedRows = Array.from({ length: maxRows }, (_, index) => rows[index] ?? row(""));
     const tab = (name: string, active: boolean) => active
@@ -335,14 +377,21 @@ class PromptPicker {
       this.searchQuery = "";
     } else if (this.keybindings.matches(data, "tui.select.confirm")) {
       this.searchMode = false;
+    } else if (this.keybindings.matches(data, "tui.select.up")) {
+      this.searchMode = false;
+      return this.move(-1);
+    } else if (this.keybindings.matches(data, "tui.select.down")) {
+      this.searchMode = false;
+      return this.move(1);
     } else if (this.keybindings.matches(data, "tui.input.backspace") || data === "\x7f" || data === "\b") {
       this.searchQuery = this.searchQuery.slice(0, -1);
+      this.selected = 0;
     } else if (data.length === 1 && data.charCodeAt(0) >= 32) {
       this.searchQuery += data;
+      this.selected = 0;
     } else {
       return;
     }
-    this.selected = 0;
     this.tui.requestRender();
   }
 
@@ -386,7 +435,8 @@ class PromptPicker {
     const rows = prompts.slice(start, start + maxRows).map((prompt, index) => {
       const line = `${prompt.pinned ? "[PIN] " : "      "}${prompt.prompt.replace(/[\r\n\t]+/g, " ")}`;
       const selected = start + index === this.selected;
-      return row(`${selected ? this.theme.fg("accent", "❯ ") : "  "}${selected ? this.theme.fg("accent", line) : line}`);
+      const content = highlightMatch(line, this.searchQuery || this.filter, this.theme, selected);
+      return row(`${selected ? this.theme.fg("accent", "❯ ") : "  "}${content}`);
     });
     const renderedRows = Array.from({ length: maxRows }, (_, index) => rows[index] ?? row(""));
     const range = prompts.length ? `${this.selected + 1}/${prompts.length}` : "0/0";

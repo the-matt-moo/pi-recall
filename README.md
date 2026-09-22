@@ -57,6 +57,7 @@ pi install ./pi-recall
 Picker controls:
 
 - `/`: search inside the picker
+- `Up` / `Down`: navigate results (exits search mode)
 - `Tab`: switch tabs
 - `s`: sort by date or alphabetically
 - `Space`: pin or unpin

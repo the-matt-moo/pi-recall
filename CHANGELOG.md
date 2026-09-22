@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.5.1] - 21-09-2026
+
+### Added
+- Highlight search filter matches across visible session and prompt titles in modal pickers.
+- Allow Up and Down arrow keys to exit the modal search field and continue navigating results.
+- Update demo preview animation in README.
+
 ## [0.5.0] - 21-09-2026
 
 ### Changed
