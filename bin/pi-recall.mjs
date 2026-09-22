@@ -59,6 +59,6 @@ if (command === "list" || /^\d+$/.test(command)) {
     }
   }
 } else {
-  console.log("Usage: pi-history [list [N]|N|last|session|path|resume|resend|prune [--dry-run] [--days=N]]");
+  console.log("Usage: pi-recall [list [N]|N|last|session|path|resume|resend|prune [--dry-run] [--days=N]]");
   process.exitCode = 1;
 }

@@ -1,6 +1,6 @@
-![pi-session-history](./assets/pi-session-history-social-card.png)
+![pi-recall](./assets/pi-recall-social-card.png)
 
-# pi-session-history
+# pi-recall
 
 Persistent session and prompt recall for [Pi](https://github.com/earendil-works/pi-mono). It names sessions, searches saved conversations, restores prompts, and keeps a crash-safe prompt log.
 
@@ -21,20 +21,20 @@ Persistent session and prompt recall for [Pi](https://github.com/earendil-works/
 Recommended Pi package install:
 
 ```bash
-pi install git:github.com/the-matt-moo/pi-session-history
+pi install git:github.com/the-matt-moo/pi-recall
 ```
 
-Global install, including the `pi-history` host command:
+Global install, including the `pi-recall` host command (`pi-history` and `pi-session` aliases included):
 
 ```bash
-npm install -g git+https://github.com/the-matt-moo/pi-session-history.git
+npm install -g git+https://github.com/the-matt-moo/pi-recall.git
 ```
 
 Local development:
 
 ```bash
-git clone https://github.com/the-matt-moo/pi-session-history.git
-pi install ./pi-session-history
+git clone https://github.com/the-matt-moo/pi-recall.git
+pi install ./pi-recall
 ```
 
 ## Pi commands
@@ -62,11 +62,11 @@ Picker controls:
 - `Enter`: open or restore
 - `Esc`: close
 
-Session pins, prompt pins, and tags are stored under `~/.pi/agent/session-history/`, or under `$PI_CODING_AGENT_DIR/session-history/` when that variable is set.
+Session pins, prompt pins, and tags are stored under `~/.pi/agent/pi-recall/`, or under `$PI_CODING_AGENT_DIR/pi-recall/` when that variable is set (falls back to legacy `session-history/` if present).
 
 ## Settings
 
-Create `~/.pi/agent/session-history/settings.json`, or `$PI_CODING_AGENT_DIR/session-history/settings.json`:
+Create `~/.pi/agent/pi-recall/settings.json`, or `$PI_CODING_AGENT_DIR/pi-recall/settings.json`:
 
 ```json
 {
@@ -96,26 +96,26 @@ Create `~/.pi/agent/session-history/settings.json`, or `$PI_CODING_AGENT_DIR/ses
 
 ## Host terminal
 
-`pi-history` remains available outside Pi for crash recovery:
+`pi-recall` (`pi-history` / `pi-session`) remains available outside Pi for crash recovery:
 
 ```text
-pi-history list [N]                List recent prompts; default 10
-pi-history N                       List the last N prompts
-pi-history last                    Print the latest prompt
-pi-history session                 Print its session file or ID
-pi-history resume                  Resume its session in Pi
-pi-history resend                  Resume and resend the prompt
-pi-history path                    Print the prompt-log path
-pi-history prune [days]            Archive old sessions; default 90 days
-pi-history prune --dry-run         Preview archival
-pi-history prune --days=N          Set the age threshold
-pi-history prune --include-pinned  Allow pinned sessions to be archived
-pi-history prune --ignore-named    Preserve named sessions
+pi-recall list [N]                List recent prompts; default 10
+pi-recall N                       List the last N prompts
+pi-recall last                    Print the latest prompt
+pi-recall session                 Print its session file or ID
+pi-recall resume                  Resume its session in Pi
+pi-recall resend                  Resume and resend the prompt
+pi-recall path                    Print the prompt-log path
+pi-recall prune [days]            Archive old sessions; default 90 days
+pi-recall prune --dry-run         Preview archival
+pi-recall prune --days=N          Set the age threshold
+pi-recall prune --include-pinned  Allow pinned sessions to be archived
+pi-recall prune --ignore-named    Preserve named sessions
 ```
 
 ## Data
 
-Prompts are stored in `~/.pi/agent/session-history/prompts.jsonl`, or `$PI_CODING_AGENT_DIR/session-history/prompts.jsonl`:
+Prompts are stored in `~/.pi/agent/pi-recall/prompts.jsonl`, or `$PI_CODING_AGENT_DIR/pi-recall/prompts.jsonl`:
 
 ```json
 {

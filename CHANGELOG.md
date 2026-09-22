@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.5.0] - 21-09-2026
+
+### Changed
+- Rename package to `@tenchi4u/pi-recall` (GitHub repository `the-matt-moo/pi-recall`).
+- Primary host CLI command is now `pi-recall`; `pi-history` and `pi-session` are retained as aliases.
+- Default storage directory changed to `~/.pi/agent/pi-recall/` with backwards-compatible fallback to existing `session-history/`.
+
 ## [0.4.3] - 21-09-2026
 
 ### Added

@@ -10,6 +10,7 @@ import {
   deletePromptRecord,
   deleteSession,
   formatTimestamp,
+  getHistoryDir,
   getPromptMetadataKey,
   getSessionsForPrune,
   loadRecords,
@@ -26,6 +27,23 @@ import {
 test("formatTimestamp produces readable date with CT", () => {
   const formatted = formatTimestamp("2026-09-19T15:00:00.000Z");
   assert.match(formatted, /^\d{2}-\d{2}-\d{4},? \d{2}:\d{2} CT$/);
+});
+
+test("getHistoryDir defaults to pi-recall and falls back to legacy session-history", () => {
+  const root = mkdtempSync(join(tmpdir(), "pi-recall-dir-"));
+  const previous = process.env.PI_CODING_AGENT_DIR;
+  process.env.PI_CODING_AGENT_DIR = root;
+  try {
+    assert.equal(getHistoryDir(), join(root, "pi-recall"));
+    mkdirSync(join(root, "session-history"));
+    assert.equal(getHistoryDir(), join(root, "session-history"));
+    mkdirSync(join(root, "pi-recall"));
+    assert.equal(getHistoryDir(), join(root, "pi-recall"));
+  } finally {
+    if (previous !== undefined) process.env.PI_CODING_AGENT_DIR = previous;
+    else delete process.env.PI_CODING_AGENT_DIR;
+    rmSync(root, { recursive: true, force: true });
+  }
 });
 
 test("session search matches title, first prompt, timestamp, and full text", () => {

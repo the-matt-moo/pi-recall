@@ -449,7 +449,7 @@ class PromptPicker {
   dispose() {}
 }
 
-export default function promptHistory(pi: ExtensionAPI) {
+export default function piRecall(pi: ExtensionAPI) {
   let warned = false;
   let initialPrompt: string | undefined;
   let namingQueued = false;

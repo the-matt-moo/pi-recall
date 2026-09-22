@@ -22,7 +22,13 @@ export function getConfigDir() {
 }
 
 export function getHistoryDir() {
-  return join(getConfigDir(), "session-history");
+  const base = getConfigDir();
+  const preferred = join(base, "pi-recall");
+  const legacy = join(base, "session-history");
+  if (!existsSync(preferred) && existsSync(legacy)) {
+    return legacy;
+  }
+  return preferred;
 }
 
 export function getHistoryFile() {
