@@ -261,8 +261,9 @@ class SessionPicker {
       return row(`${selected ? this.theme.fg("accent", "❯ ") : "  "}${content}`);
     });
     const renderedRows = Array.from({ length: maxRows }, (_, index) => rows[index] ?? row(""));
+    const orange = (text: string) => `\x1b[1m\x1b[38;5;208m${text}\x1b[0m`;
     const tab = (name: string, active: boolean) => active
-      ? this.theme.fg("accent", this.theme.bold(`[${name}]`))
+      ? orange(`[${name}]`)
       : this.theme.fg("dim", `[${name}]`);
     const range = items.length ? `${this.selected + 1}/${items.length}` : "0/0";
     const top = this.theme.fg("border", `╭${"─".repeat(innerWidth)}╮`);
@@ -443,13 +444,14 @@ class PromptPicker {
       return row(`${selected ? this.theme.fg("accent", "❯ ") : "  "}${content}`);
     });
     const renderedRows = Array.from({ length: maxRows }, (_, index) => rows[index] ?? row(""));
+    const orange = (text: string) => `\x1b[1m\x1b[38;5;208m${text}\x1b[0m`;
     const range = prompts.length ? `${this.selected + 1}/${prompts.length}` : "0/0";
     const top = this.theme.fg("border", `╭${"─".repeat(innerWidth)}╮`);
     const bottom = this.theme.fg("border", `╰${"─".repeat(innerWidth)}╯`);
     return [
       top,
       row(`${this.theme.fg("accent", this.theme.bold("Prompts"))} · ${this.theme.fg("dim", range)} · ${this.theme.fg("accent", "Sort:")} ${this.sort === "date" ? "Date (newest)" : "Alphabetical"}`),
-      row(`${this.theme.fg("accent", this.tab === "all" ? "[All Prompts]" : " All Prompts ")}  ${this.theme.fg("accent", this.tab === "pinned" ? "[Pinned Prompts]" : " Pinned Prompts ")}`),
+      row(`${this.tab === "all" ? orange("[All Prompts]") : this.theme.fg("dim", " All Prompts ")}  ${this.tab === "pinned" ? orange("[Pinned Prompts]") : this.theme.fg("dim", " Pinned Prompts ")}`),
       ...(this.filter ? [row(`${this.theme.fg("accent", "Prompt filter:")} ${this.filter}`)] : []),
       row(`${this.theme.fg("accent", this.theme.bold("Search:"))} ${this.searchQuery || this.theme.fg("dim", "press / to filter")}${this.searchMode ? "▏" : ""}`),
       row(this.confirmDelete

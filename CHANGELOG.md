@@ -1,5 +1,10 @@
 # Changelog
 
+## [0.5.3] - 21-09-2026
+
+### Changed
+- Highlight active session and prompt picker tabs in bold orange and dim inactive tabs.
+
 ## [0.5.2] - 21-09-2026
 
 ### Changed
