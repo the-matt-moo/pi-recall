@@ -198,6 +198,28 @@ test("auto-naming runs after the first settled turn with the configured scoped m
     assert.equal(switchedSession, targetSession);
 
     customAction = (picker) => {
+      picker.handleInput("/");
+      picker.handleInput("i");
+      picker.handleInput("n");
+      assert.equal(picker.searchMode, true);
+      assert.equal(picker.searchQuery, "in");
+      assert.equal(picker.tab, "all");
+      picker.handleInput("\t");
+      assert.equal(picker.tab, "pinned");
+      assert.equal(picker.searchQuery, "in");
+      assert.equal(picker.searchMode, true);
+      picker.handleInput("\t");
+      assert.equal(picker.tab, "opening");
+      assert.equal(picker.searchQuery, "in");
+      assert.equal(picker.searchMode, true);
+      picker.handleInput("\t");
+      assert.equal(picker.tab, "all");
+      assert.equal(picker.searchQuery, "in");
+      assert.equal(picker.searchMode, true);
+    };
+    await commands.get("sessions").handler("", ctx);
+
+    customAction = (picker) => {
       picker.handleInput("d");
       picker.handleInput("n");
       assert.equal(existsSync(targetSession), true, "n must cancel session deletion");
@@ -206,6 +228,24 @@ test("auto-naming runs after the first settled turn with the configured scoped m
       assert.equal(existsSync(targetSession), false, "y must permanently delete the session file");
     };
     await commands.get("sessions").handler("", ctx);
+
+    customAction = (picker) => {
+      picker.handleInput("/");
+      picker.handleInput("a");
+      picker.handleInput("d");
+      assert.equal(picker.searchMode, true);
+      assert.equal(picker.searchQuery, "ad");
+      assert.equal(picker.tab, "all");
+      picker.handleInput("\t");
+      assert.equal(picker.tab, "pinned");
+      assert.equal(picker.searchQuery, "ad");
+      assert.equal(picker.searchMode, true);
+      picker.handleInput("\t");
+      assert.equal(picker.tab, "all");
+      assert.equal(picker.searchQuery, "ad");
+      assert.equal(picker.searchMode, true);
+    };
+    await commands.get("prompts").handler("", ctx);
 
     customAction = (picker) => {
       picker.handleInput("d");

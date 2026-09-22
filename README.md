@@ -58,7 +58,7 @@ Picker controls:
 
 - `/`: search inside the picker
 - `Up` / `Down`: navigate results (exits search mode)
-- `Tab`: switch tabs
+- `Tab`: switch tabs (also while searching; preserves the filter)
 - `s`: sort by date or alphabetically
 - `Space`: pin or unpin
 - `d`, then `y`: permanently delete the selected session file or prompt history entry

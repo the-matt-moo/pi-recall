@@ -222,6 +222,8 @@ class SessionPicker {
     } else if (this.keybindings.matches(data, "tui.select.down")) {
       this.searchMode = false;
       return this.move(1);
+    } else if (this.keybindings.matches(data, "tui.input.tab") || data === "\t") {
+      return this.switchTab();
     } else if (this.keybindings.matches(data, "tui.input.backspace") || data === "\x7f" || data === "\b") {
       this.searchQuery = this.searchQuery.slice(0, -1);
       this.selected = 0;
@@ -383,6 +385,8 @@ class PromptPicker {
     } else if (this.keybindings.matches(data, "tui.select.down")) {
       this.searchMode = false;
       return this.move(1);
+    } else if (this.keybindings.matches(data, "tui.input.tab") || data === "\t") {
+      return this.switchTab();
     } else if (this.keybindings.matches(data, "tui.input.backspace") || data === "\x7f" || data === "\b") {
       this.searchQuery = this.searchQuery.slice(0, -1);
       this.selected = 0;

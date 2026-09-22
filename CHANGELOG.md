@@ -1,5 +1,10 @@
 # Changelog
 
+## [0.5.2] - 21-09-2026
+
+### Changed
+- Allow Tab to switch session and prompt picker tabs without leaving search mode or clearing the filter.
+
 ## [0.5.1] - 21-09-2026
 
 ### Added
