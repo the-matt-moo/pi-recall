@@ -99,9 +99,11 @@ function textFromContent(content: unknown) {
 }
 
 function highlightMatch(text: string, query: string, theme: Theme, selected: boolean) {
+  const green = (t: string) => `\x1b[38;5;82m${t}\x1b[0m`;
+  const styleText = (t: string) => selected ? green(t) : t;
   const trimmed = query.trim();
   if (!trimmed) {
-    return selected ? theme.fg("accent", text) : text;
+    return styleText(text);
   }
   const lowerText = text.toLocaleLowerCase();
   const lowerQuery = trimmed.toLocaleLowerCase();
@@ -110,13 +112,13 @@ function highlightMatch(text: string, query: string, theme: Theme, selected: boo
   let matchIndex = lowerText.indexOf(lowerQuery, lastIndex);
 
   if (matchIndex === -1) {
-    return selected ? theme.fg("accent", text) : text;
+    return styleText(text);
   }
 
   while (matchIndex !== -1) {
     if (matchIndex > lastIndex) {
       const before = text.slice(lastIndex, matchIndex);
-      result += selected ? theme.fg("accent", before) : before;
+      result += styleText(before);
     }
     const match = text.slice(matchIndex, matchIndex + trimmed.length);
     result += theme.bold(theme.underline(theme.bg("searchMatchBg", theme.fg("searchMatchText", match))));
@@ -126,7 +128,7 @@ function highlightMatch(text: string, query: string, theme: Theme, selected: boo
 
   if (lastIndex < text.length) {
     const after = text.slice(lastIndex);
-    result += selected ? theme.fg("accent", after) : after;
+    result += styleText(after);
   }
 
   return result;
@@ -258,10 +260,13 @@ class SessionPicker {
       const line = `${marker}[${formatTimestamp(item.timestamp)}] ${title.replace(/[\r\n\t]+/g, " ")}${tags}`;
       const selected = start + index === this.selected;
       const content = highlightMatch(line, this.searchQuery || this.filter, this.theme, selected);
-      return row(`${selected ? this.theme.fg("accent", "❯ ") : "  "}${content}`);
+      const green = (t: string) => `\x1b[38;5;82m${t}\x1b[0m`;
+      return row(`${selected ? green("❯ ") : "  "}${content}`);
     });
     const renderedRows = Array.from({ length: maxRows }, (_, index) => rows[index] ?? row(""));
     const orange = (text: string) => `\x1b[1m\x1b[38;5;208m${text}\x1b[0m`;
+    const violet = (text: string) => `\x1b[1m\x1b[38;5;177m${text}\x1b[0m`;
+    const blue = (text: string) => `\x1b[1m\x1b[38;5;75m${text}\x1b[0m`;
     const tab = (name: string, active: boolean) => active
       ? orange(`[${name}]`)
       : this.theme.fg("dim", `[${name}]`);
@@ -270,9 +275,9 @@ class SessionPicker {
     const bottom = this.theme.fg("border", `╰${"─".repeat(innerWidth)}╯`);
     return [
       top,
-      row(`${this.theme.fg("accent", this.theme.bold("Sessions"))} · ${this.theme.fg("warning", this.tab.toUpperCase())} · ${this.theme.fg("dim", range)} · ${this.theme.fg("accent", "Sort:")} ${this.sort === "date" ? "Date (newest)" : "Alphabetical"}`),
+      row(`${blue("Sessions")} · ${this.theme.fg("warning", this.tab.toUpperCase())} · ${this.theme.fg("dim", range)} · ${this.theme.fg("accent", "Sort:")} ${this.sort === "date" ? "Date (newest)" : "Alphabetical"}`),
       ...(this.filter ? [row(`${this.theme.fg("accent", "Session name filter:")} ${this.filter}`)] : []),
-      row(`${this.theme.fg("accent", this.theme.bold("Search:"))} ${this.searchQuery || this.theme.fg("dim", "press / to filter")}${this.searchMode ? "▏" : ""}`),
+      row(`${violet("Search:")} ${this.searchQuery || this.theme.fg("dim", "press / to filter")}${this.searchMode ? "▏" : ""}`),
       row(`${tab("All Sessions", this.tab === "all")}  ${tab("Pinned Sessions", this.tab === "pinned")}  ${tab("Session by Opening Prompt", this.tab === "opening")}`),
       row(this.confirmDelete
         ? this.theme.fg("error", "Delete is permanent. Are you sure you want to proceed? [y/n]")
@@ -441,19 +446,22 @@ class PromptPicker {
       const line = `${prompt.pinned ? "[PIN] " : "      "}${prompt.prompt.replace(/[\r\n\t]+/g, " ")}`;
       const selected = start + index === this.selected;
       const content = highlightMatch(line, this.searchQuery || this.filter, this.theme, selected);
-      return row(`${selected ? this.theme.fg("accent", "❯ ") : "  "}${content}`);
+      const green = (t: string) => `\x1b[38;5;82m${t}\x1b[0m`;
+      return row(`${selected ? green("❯ ") : "  "}${content}`);
     });
     const renderedRows = Array.from({ length: maxRows }, (_, index) => rows[index] ?? row(""));
     const orange = (text: string) => `\x1b[1m\x1b[38;5;208m${text}\x1b[0m`;
+    const violet = (text: string) => `\x1b[1m\x1b[38;5;177m${text}\x1b[0m`;
+    const blue = (text: string) => `\x1b[1m\x1b[38;5;75m${text}\x1b[0m`;
     const range = prompts.length ? `${this.selected + 1}/${prompts.length}` : "0/0";
     const top = this.theme.fg("border", `╭${"─".repeat(innerWidth)}╮`);
     const bottom = this.theme.fg("border", `╰${"─".repeat(innerWidth)}╯`);
     return [
       top,
-      row(`${this.theme.fg("accent", this.theme.bold("Prompts"))} · ${this.theme.fg("dim", range)} · ${this.theme.fg("accent", "Sort:")} ${this.sort === "date" ? "Date (newest)" : "Alphabetical"}`),
-      row(`${this.tab === "all" ? orange("[All Prompts]") : this.theme.fg("dim", " All Prompts ")}  ${this.tab === "pinned" ? orange("[Pinned Prompts]") : this.theme.fg("dim", " Pinned Prompts ")}`),
+      row(`${blue("Prompts")} · ${this.theme.fg("dim", range)} · ${this.theme.fg("accent", "Sort:")} ${this.sort === "date" ? "Date (newest)" : "Alphabetical"}`),
       ...(this.filter ? [row(`${this.theme.fg("accent", "Prompt filter:")} ${this.filter}`)] : []),
-      row(`${this.theme.fg("accent", this.theme.bold("Search:"))} ${this.searchQuery || this.theme.fg("dim", "press / to filter")}${this.searchMode ? "▏" : ""}`),
+      row(`${violet("Search:")} ${this.searchQuery || this.theme.fg("dim", "press / to filter")}${this.searchMode ? "▏" : ""}`),
+      row(`${this.tab === "all" ? orange("[All Prompts]") : this.theme.fg("dim", " All Prompts ")}  ${this.tab === "pinned" ? orange("[Pinned Prompts]") : this.theme.fg("dim", " Pinned Prompts ")}`),
       row(this.confirmDelete
         ? this.theme.fg("error", "Delete is permanent. Are you sure you want to proceed? [y/n]")
         : this.deleteError

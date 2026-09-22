@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.5.4] - 21-09-2026
+
+### Changed
+- Color active picker lines green and style "Search:" in violet and modal titles in light blue.
+- Reorder prompt picker header lines so search precedes tabs to match session picker layout.
+
 ## [0.5.3] - 21-09-2026
 
 ### Changed
