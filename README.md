@@ -4,6 +4,8 @@
 
 Persistent session and prompt recall for [Pi](https://github.com/earendil-works/pi-mono). It names sessions, searches saved conversations, restores prompts, and keeps a crash-safe prompt log.
 
+![pi-recall demo](./assets/pi-recall.gif)
+
 ## Features
 
 - `/sessions` searches and opens saved sessions.
